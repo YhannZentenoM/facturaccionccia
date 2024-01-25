@@ -191,9 +191,10 @@ const Clientespage = () => {
             // console.log(formData)
             toast.success('Cliente registrado correctamente')
         }
-        setIsModal(false)
+        await getClientes()
         formRef.current.reset()
-        location.reload()
+        setIsModal(false)
+        // location.reload()
     }
 
     // const selectIndice = () => {

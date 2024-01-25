@@ -3,10 +3,16 @@ import { supabase } from '../supabase/client'
 import { Toaster, toast } from 'sonner';
 import Layout from '../components/Layout';
 import Table from '../components/Table';
+import Modal from '../components/Modal';
+import SelectInput from '../components/SelectInput';
 
 const Productospage = () => {
+    const tipoProducto = [
+        { value: "NIU", label: 'NIU - PRODUCTO' },
+        { value: "ZZ", label: 'ZZ - SERVICIO' },
+    ]
+
     const [isModal, setIsModal] = useState(false)
-    const [isValidateDocumento, setIsValidateDocumento] = useState(false)
     const [documentoTipo, setDocumentoTipo] = useState([])
     const [formData, setFormData] = useState([])
     const [dataProductos, setDataProductos] = useState([])
@@ -86,6 +92,22 @@ const Productospage = () => {
         setDataProductos(productos)
     }
 
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        // const { data: producto, error } = await supabase
+        //     .from('productos')
+        //     .insert({
+        //         codigo: formData.codigo,
+        //         nombre: formData.nombre,
+        //         precio_venta: formData.precio_venta,
+        //         centro_costos_id: formData.centro_costos_id,
+        //     })
+        // if (error) return toast(error.message, 'error')
+        // toast('Producto creado correctamente', 'success')
+        // setIsModal(false)
+        // getProductos()
+    }
+
     return (
         <>
             <Layout>
@@ -102,6 +124,69 @@ const Productospage = () => {
                     </Table>
                 </div>
             </Layout>
+            <Modal isOpen={isModal} onClose={() => setIsModal(false)}>
+                <h1 className='text-3xl'>Nuevo producto</h1>
+                <form onSubmit={handleSubmit} ref={formRef}>
+                    <div className='grid grid-cols-2 mt-2 gap-x-5 gap-y-2'>
+                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                            Código
+                            <input
+                                type="text"
+                                name='codigo'
+                                className='py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg'
+                                value={formData.codigo || ''}
+                                onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+                            />
+                        </label>
+                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                            Tipo
+                            <SelectInput
+                                name='unidad_de_medida'
+                                options={tipoProducto}
+                                onChange={(e) => setFormData({ ...formData, unidad_de_medida: e.value })}
+                            // selected={documentoTipo[indice]}
+                            // value={formData.tipo || ''}
+                            />
+                        </label>
+                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                            Centro de costos
+                            <SelectInput
+                                name='centro_costos_id'
+                                options={documentoTipo}
+                                onChange={(e) => setFormData({ ...formData, centro_costos_id: e.value })}
+                            // selected={documentoTipo[indice]}
+                            // value={formData.tipo || ''}
+                            />
+                        </label>
+                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                            Precio inc. IGV
+                            <input
+                                type="text"
+                                name='precio'
+                                className='py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg'
+                                value={formData.precio || ''}
+                                onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                            />
+                        </label>
+                        <label className='flex flex-col gap-1 text-sm text-zinc-500 col-span-2'>
+                            Nombre del producto o servicio
+                            <input
+                                type="text"
+                                name='nombre'
+                                className='py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg'
+                                value={formData.nombre || ''}
+                                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                            />
+                        </label>
+                    </div>
+                    <button
+                        type='submit'
+                        className="text-white mt-5 bg-primary border hover:bg-primary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-2 text-center w-full"
+                    >
+                        Guardar
+                    </button>
+                </form>`
+            </Modal>
         </>
     )
 }

@@ -8,7 +8,7 @@ const Layout = ({ children }) => {
                 <ul className="flex items-center justify-center gap-5">
                     <li>
                         <Link
-                            to={"/"}
+                            to={"/home"}
                             className='hover:border-b hover:border-primary transition-all duration-300'>
                             Inicio
                         </Link>
