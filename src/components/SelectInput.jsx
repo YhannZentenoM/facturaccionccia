@@ -45,6 +45,7 @@ const SelectInput = ({ options, onChange, name, selected, required = false }) =>
                 menu: (styles) => ({
                     ...styles,
                     marginTop: '.2rem',
+                    width: '260px',
                 }),
             }}
             onChange={onChange}

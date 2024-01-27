@@ -5,14 +5,9 @@ import SelectInput from "../components/SelectInput";
 import Switch from "../components/Switch";
 import { IconPlus, IconTimes } from "../components/Icons";
 // import { data } from 'autoprefixer';
-const FACTOR_IGV = 0.1525;
+const FACTOR_IGV = 0.15254237288;
 
 const ComprobanteNuevoPage = () => {
-  // const options = [
-  //     { value: 'chocolate', label: 'Chocolate' },
-  //     { value: 'strawberry', label: 'Strawberry' },
-  //     { value: 'vanilla', label: 'Vanilla' }
-  // ]
   const documents = [
     { value: 1, label: "FACTURA [01]" },
     { value: 2, label: "BOLETA [02]" },
@@ -82,7 +77,6 @@ const ComprobanteNuevoPage = () => {
   const [formData, setFormData] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
-  // const [producto, setProducto] = useState()
   const [tipoIgv, setTipoIgv] = useState([]);
   const [series, setSeries] = useState([]);
   const [selectedSerie, setSelectedSerie] = useState();
@@ -90,6 +84,11 @@ const ComprobanteNuevoPage = () => {
   const [selectedDocumento, setSelectedDocumento] = useState(documents[0]);
   const [selectedOperaciones, setSelectedOperaciones] = useState(operations[0]);
   const [filas, setFilas] = useState([]);
+  const [totalComprobante, setTotalComprobante] = useState({
+    total_gravada: 0.0,
+    total_igv: 0.0,
+    total: 0.0,
+  });
   // const [valoresFinales, setValoresFinales] = useState([]);
   // console.log(formData)
 
@@ -111,14 +110,9 @@ const ComprobanteNuevoPage = () => {
     });
   }, []);
 
-  // useEffect(() => {
-  //     getFechaActual()
-  //     setFormData({
-  //         ...formData,
-  //         fecha_de_emision: fechaActual,
-  //         fecha_de_vencimiento: fechaActual,
-  //     })
-  // }, [fechaActual])
+  useEffect(() => {
+    sumaTotalComprobante();
+  }, [filas]);
 
   useEffect(() => {
     filterSeriesData();
@@ -155,13 +149,6 @@ const ComprobanteNuevoPage = () => {
       .eq("id", id)
       .single();
     if (error) console.log(error);
-    // const options = data.map((item) => {
-    //     return {
-    //         value: item.id,
-    //         label: `${item.codigo} - ${item.nombre}`
-    //     }
-    // })
-    // setProductos(options)
     return data;
   };
 
@@ -171,7 +158,7 @@ const ComprobanteNuevoPage = () => {
     const options = data.map((item) => {
       return {
         value: item.codigo,
-        label: `${item.descripcion} [${item.codigo}]`,
+        label: `${item.descripcion}`,
       };
     });
     setTipoIgv(options);
@@ -200,26 +187,17 @@ const ComprobanteNuevoPage = () => {
     series.length > 0 && setFormData({ ...formData, serie: series[0].value });
   };
 
-  // const handleInputChange = (e) => {
-  //     setFormData({
-  //         ...formData,
-  //         tipo_de_comprobante: e.value
-  //     })
-  //     const series = seriesData.filter((item) => item.document_type_id == e.value)
-  //     setSeries(series)
-  // }
-
   const handleSelectCliente = async (e) => {
     // console.log("CLIENTE", e.value)
     const { data, error } = await supabase
       .from("clientes")
       .select(
         `
-                *,
-                cliente_tipo_de_documento(
-                    codigo
-                )
-            `
+            *,
+            cliente_tipo_de_documento(
+                codigo
+            )
+        `
       )
       .eq("id", e.value)
       .single();
@@ -242,9 +220,12 @@ const ComprobanteNuevoPage = () => {
       id: +Math.random().toString().substring(2, 10),
       cantidad: 1,
       valor_unitario: 0.0,
+      total: 0.0,
+      igv: 0.0,
+      subtotal: 0.0,
+      tipo_de_igv: tipoIgv[0].value,
     };
     setFilas([...filas, nuevaFila]);
-    // setFormData({ ...formData, items: {nuevaFila} })
   };
 
   const eliminarFila = (id) => {
@@ -297,7 +278,6 @@ const ComprobanteNuevoPage = () => {
             const igv = decimalAdjust(valorUnitario * 0.18, 2);
             const subtotal = decimalAdjust(+valorUnitario, 2);
             const total = decimalAdjust(+subtotal + +igv, 2);
-            console.log("IGV", igv);
             return await {
               ...fila,
               [name]: +e.target.value, //cantidad
@@ -321,21 +301,16 @@ const ComprobanteNuevoPage = () => {
     const nuevasFilas = await Promise.all(
       filas.map(async (fila) => {
         if (fila.id === id) {
-          // TODO: CAlcular IGV
           const valorUnitario = decimalAdjust(+e.target.value, 2);
           const igv = decimalAdjust(valorUnitario * 0.18, 2);
-          // const dataProducto = await getProducto(fila.producto_id)
-          // const igv = decimalAdjust((valorUnitario * 0.18), 2)
-          // const valorUnitario = decimalAdjust(valorUnitario - igv, 2)
           const subtotal = decimalAdjust(+valorUnitario, 2);
           const total = decimalAdjust(+subtotal + +igv, 2);
           return await {
             ...fila,
             [name]: valorUnitario, //precio_unitario
-            // valor_unitario: valorUnitario,
             precio_unitario: valorUnitario,
             subtotal: +subtotal * +fila.cantidad,
-            total: +total * +fila.cantidad,
+            total: +total * +fila.cantidad || 0,
             igv: +igv * +fila.cantidad,
           };
         } else {
@@ -348,9 +323,13 @@ const ComprobanteNuevoPage = () => {
   };
 
   const handleSelectChangeProductos = (id, e, name) => {
-    const nuevasFilas = filas.map((fila) =>
-      fila.id === id ? { ...fila, [name]: e.value } : fila
-    );
+    const nuevasFilas = filas.map((fila) => {
+      if (fila.id === id) {
+        return { ...fila, [name]: e.value };
+      } else {
+        return fila;
+      }
+    });
     setFilas(nuevasFilas);
     setFormData({ ...formData, items: nuevasFilas });
   };
@@ -358,57 +337,53 @@ const ComprobanteNuevoPage = () => {
   const handleSelectChangeProductosData = async (id, e, name) => {
     const cantidad = 1;
     const dataProducto = await getProducto(e.value);
-    // setProducto(dataProducto)
     const igv = decimalAdjust(+dataProducto.precio_venta * FACTOR_IGV, 2);
     const valorUnitario = decimalAdjust(+dataProducto.precio_venta - igv, 2);
-    // const subtotal = decimalAdjust(+valorUnitario * +formData.items[+id-1].cantidad, 10)
     const total = decimalAdjust(+valorUnitario + +igv, 2);
-    // await calcularMontos(id, e)
 
     const nuevasFilas = filas.map((fila) => {
-      return fila.id === id
-        ? {
-            ...fila,
-            [name]: e.value,
-            cantidad: cantidad,
-            unidad_de_medida: "ZZ",
-            descripcion: dataProducto.nombre,
-            valor_unitario: +valorUnitario,
-            precio_unitario: +dataProducto.precio_venta,
-            subtotal: +valorUnitario * cantidad,
-            total: +total * cantidad,
-            igv: +igv * cantidad,
-            tipo_de_igv: tipoIgv[0].value,
-          }
-        : fila;
+      if (fila.id === id) {
+        return {
+          ...fila,
+          [name]: e.value,
+          cantidad: cantidad,
+          unidad_de_medida: "ZZ",
+          descripcion: dataProducto.nombre,
+          valor_unitario: +valorUnitario,
+          precio_unitario: +dataProducto.precio_venta,
+          subtotal: +valorUnitario * cantidad,
+          total: +total * cantidad || 0,
+          igv: +igv * cantidad,
+          tipo_de_igv: tipoIgv[0].value,
+        };
+      } else {
+        return fila;
+      }
     });
-    // console.log(nuevasFilas)
     setFilas(nuevasFilas);
     setFormData({ ...formData, items: nuevasFilas });
   };
 
-  // const calcularMontos = async (id, e) => {
-  //     const dataProducto = await getProducto(e.value)
-  //     const igv = decimalAdjust((+dataProducto.precio_venta * 0.18) * +formData.items[+id-1].cantidad, 10)
-  //     const valorUnitario = decimalAdjust(+dataProducto.precio_venta - igv, 10)
-  //     const subtotal = decimalAdjust(+valorUnitario * +formData.items[+id-1].cantidad, 10)
-  //     const total = decimalAdjust(+subtotal + +igv, 10)
+  console.log(filas);
+  const sumaTotalComprobante = () => {
+    const nuevaSumaTotal = filas.reduce((acc, producto) => {
+      return acc + producto.total;
+    }, 0);
 
-  //     const nuevasFilas = filas.map((fila) => {
-  //         return fila.id === id ? {
-  //             ...fila,
-  //             descripcion: dataProducto.nombre,
-  //             valor_unitario: +valorUnitario,
-  //             precio_unitario: +dataProducto.precio_venta,
-  //             subtotal: +subtotal,
-  //             total: +total,
-  //             igv: +igv,
-  //         } : fila
-  //     });
+    const sumaTotalGravada = filas.reduce((acc, producto) => {
+      return acc + producto.subtotal;
+    }, 0);
 
-  //     setFilas(nuevasFilas);
-  //     setFormData({ ...formData, items: nuevasFilas })
-  // }
+    const sumaTotalIgv = filas.reduce((acc, producto) => {
+      return acc + producto.igv;
+    }, 0);
+    setTotalComprobante({
+      ...totalComprobante,
+      total_igv: decimalAdjust(sumaTotalIgv, 2),
+      total_gravada: decimalAdjust(sumaTotalGravada, 2),
+      total: decimalAdjust(nuevaSumaTotal, 2),
+    });
+  };
 
   function decimalAdjust(number, decimals) {
     if (isNaN(number) || isNaN(decimals)) {
@@ -572,7 +547,7 @@ const ComprobanteNuevoPage = () => {
         </div>
         {filas.map((fila) => (
           <div key={fila.id} className="grid grid-cols-10 gap-1">
-            {/* {console.log("FILA",fila)} */}
+            {console.log("IGVFILA", fila.tipo_de_igv)}
             <label className="flex flex-col gap-1 text-sm text-zinc-500 col-span-2">
               <SelectInput
                 name={`producto_id_${fila.id}`}
@@ -611,10 +586,10 @@ const ComprobanteNuevoPage = () => {
               <SelectInput
                 name={`tipo_de_igv_${fila.id}`}
                 options={tipoIgv}
-                onChange={(e) =>
-                  handleSelectChangeProductos(fila.id, e, `tipo_de_igv`)
-                }
-                selected={tipoIgv[0]}
+                onChange={(e) => {
+                  handleSelectChangeProductos(fila.id, e, `tipo_de_igv`);
+                }}
+                // value={fila.tipo_de_igv}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-zinc-500">
@@ -802,6 +777,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_gravada}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -810,6 +787,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_igv}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -841,6 +820,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total}
+              step={0.01}
             />
           </label>
         </div>
