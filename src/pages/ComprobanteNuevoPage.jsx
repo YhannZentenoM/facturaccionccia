@@ -85,8 +85,16 @@ const ComprobanteNuevoPage = () => {
   const [selectedOperaciones, setSelectedOperaciones] = useState(operations[0]);
   const [filas, setFilas] = useState([]);
   const [totalComprobante, setTotalComprobante] = useState({
+    total_descuento_global: 0.0,
+    total_descuento_item: 0.0,
+    total_descuento: 0.0,
+    total_anticipo: 0.0,
+    total_exonerada: 0.0,
+    total_inafecta: 0.0,
     total_gravada: 0.0,
     total_igv: 0.0,
+    total_gratuita: 0.0,
+    total_icbper: 0.0,
     total: 0.0,
   });
   // const [valoresFinales, setValoresFinales] = useState([]);
@@ -223,7 +231,7 @@ const ComprobanteNuevoPage = () => {
       total: 0.0,
       igv: 0.0,
       subtotal: 0.0,
-      tipo_de_igv: tipoIgv[0].value,
+      // tipo_de_igv: tipoIgv[0].value,
     };
     setFilas([...filas, nuevaFila]);
   };
@@ -274,19 +282,36 @@ const ComprobanteNuevoPage = () => {
               igv: +igv * +e.target.value,
             };
           } else {
-            const valorUnitario = decimalAdjust(+fila.valor_unitario, 2);
-            const igv = decimalAdjust(valorUnitario * 0.18, 2);
-            const subtotal = decimalAdjust(+valorUnitario, 2);
-            const total = decimalAdjust(+subtotal + +igv, 2);
-            return await {
-              ...fila,
-              [name]: +e.target.value, //cantidad
-              valor_unitario: +valorUnitario,
-              // precio_unitario: +dataProducto.precio_venta,
-              subtotal: +subtotal * +e.target.value,
-              total: +total * +e.target.value,
-              igv: +igv * +e.target.value,
-            };
+            //TODO hacer el calculo de tipo de igv para cuando cambia la cantidad
+            if (fila.producto_id) {
+              if (fila.tipo_de_igv == 1) {
+                // gravada
+                const valorUnitario = decimalAdjust(+fila.valor_unitario, 2);
+                const igv = decimalAdjust(valorUnitario * 0.18, 2);
+                const subtotal = decimalAdjust(+valorUnitario, 2);
+                const total = decimalAdjust(+subtotal + +igv, 2);
+                return await {
+                  ...fila,
+                  [name]: +e.target.value, //cantidad
+                  valor_unitario: +valorUnitario,
+                  subtotal: +subtotal * +e.target.value,
+                  total: +total * +e.target.value,
+                  igv: +igv * +e.target.value,
+                };
+              }
+              if (fila.tipo_de_igv == 9 || fila.tipo_de_igv == 16) {
+                // inafecta
+                const valorUnitario = decimalAdjust(+fila.valor_unitario, 2);
+                return await {
+                  ...fila,
+                  [name]: +e.target.value, //cantidad
+                  valor_unitario: +valorUnitario,
+                  subtotal: +valorUnitario * +e.target.value,
+                  total: +valorUnitario * +e.target.value,
+                  igv: 0,
+                };
+              }
+            }
           }
         } else {
           return fila;
@@ -322,14 +347,60 @@ const ComprobanteNuevoPage = () => {
     setFormData({ ...formData, items: nuevasFilas });
   };
 
-  const handleSelectChangeProductos = (id, e, name) => {
-    const nuevasFilas = filas.map((fila) => {
-      if (fila.id === id) {
-        return { ...fila, [name]: e.value };
-      } else {
-        return fila;
-      }
-    });
+  // modificacion del tipo de IDV para cada producto
+  const handleSelectChangeProductos = async (id, e, name) => {
+    const nuevasFilas = await Promise.all(
+      filas.map(async (fila) => {
+        if (fila.id === id) {
+          if (fila.producto_id) {
+            if (e.value == 1) {
+              const dataProducto = await getProducto(fila.producto_id);
+              const igv = decimalAdjust(
+                +dataProducto.precio_venta * FACTOR_IGV,
+                2
+              );
+              const valorUnitario = decimalAdjust(
+                +dataProducto.precio_venta - igv,
+                2
+              );
+              const total = decimalAdjust(+valorUnitario + +igv, 2);
+              return {
+                ...fila,
+                [name]: e.value,
+                valor_unitario: +valorUnitario,
+                precio_unitario: +dataProducto.precio_venta,
+                subtotal: +valorUnitario * fila.cantidad,
+                total: +total * fila.cantidad || 0,
+                igv: +igv * fila.cantidad,
+              };
+            }
+            if (e.value == 9 || e.value == 16) {
+              const dataProducto = await getProducto(fila.producto_id);
+              // console.log(dataProducto.precio_venta)
+              // const igv = decimalAdjust(+dataProducto.precio_venta * FACTOR_IGV, 2);
+              const valorUnitario = decimalAdjust(
+                +dataProducto.precio_venta,
+                2
+              );
+              const total = decimalAdjust(+valorUnitario, 2);
+              return {
+                ...fila,
+                [name]: e.value,
+                valor_unitario: +valorUnitario,
+                precio_unitario: +dataProducto.precio_venta,
+                subtotal: +valorUnitario * fila.cantidad,
+                total: +total * fila.cantidad || 0,
+                igv: 0,
+              };
+            }
+          } else {
+            return { ...fila, [name]: e.value };
+          }
+        } else {
+          return fila;
+        }
+      })
+    );
     setFilas(nuevasFilas);
     setFormData({ ...formData, items: nuevasFilas });
   };
@@ -338,11 +409,16 @@ const ComprobanteNuevoPage = () => {
     const cantidad = 1;
     const dataProducto = await getProducto(e.value);
     const igv = decimalAdjust(+dataProducto.precio_venta * FACTOR_IGV, 2);
-    const valorUnitario = decimalAdjust(+dataProducto.precio_venta - igv, 2);
+    let valorUnitario = decimalAdjust(+dataProducto.precio_venta - igv, 2);
     const total = decimalAdjust(+valorUnitario + +igv, 2);
 
     const nuevasFilas = filas.map((fila) => {
+      //TODO validar si existe tipo de igv para recalcular los totales
       if (fila.id === id) {
+        // if(fila.tipo_de_igv == 9){
+        //   valorUnitario = decimalAdjust(+dataProducto.precio_venta, 2);
+        //   console.log("valor", valorUnitario)
+        // }
         return {
           ...fila,
           [name]: e.value,
@@ -354,7 +430,7 @@ const ComprobanteNuevoPage = () => {
           subtotal: +valorUnitario * cantidad,
           total: +total * cantidad || 0,
           igv: +igv * cantidad,
-          tipo_de_igv: tipoIgv[0].value,
+          // tipo_de_igv: tipoIgv[0].value,
         };
       } else {
         return fila;
@@ -370,17 +446,30 @@ const ComprobanteNuevoPage = () => {
       return acc + producto.total;
     }, 0);
 
-    const sumaTotalGravada = filas.reduce((acc, producto) => {
+    const tipoIgvFiltradosGravada = filas.filter((igv) => igv.tipo_de_igv == 1);
+    const sumaTotalGravada = tipoIgvFiltradosGravada.reduce((acc, producto) => {
       return acc + producto.subtotal;
     }, 0);
+
+    const tipoIgvFiltradosInafecto = filas.filter(
+      (igv) => igv.tipo_de_igv == 9
+    );
+    const sumaTotalInafecto = tipoIgvFiltradosInafecto.reduce(
+      (acc, producto) => {
+        return acc + producto.subtotal;
+      },
+      0
+    );
 
     const sumaTotalIgv = filas.reduce((acc, producto) => {
       return acc + producto.igv;
     }, 0);
+
     setTotalComprobante({
       ...totalComprobante,
       total_igv: decimalAdjust(sumaTotalIgv, 2),
       total_gravada: decimalAdjust(sumaTotalGravada, 2),
+      total_inafecta: decimalAdjust(sumaTotalInafecto, 2),
       total: decimalAdjust(nuevaSumaTotal, 2),
     });
   };
@@ -589,7 +678,6 @@ const ComprobanteNuevoPage = () => {
                 onChange={(e) => {
                   handleSelectChangeProductos(fila.id, e, `tipo_de_igv`);
                 }}
-                // value={fila.tipo_de_igv}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-zinc-500">
@@ -729,6 +817,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_descuento_global}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -737,6 +827,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_descuento_item}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -745,6 +837,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_descuento}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -753,6 +847,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_anticipo}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -761,6 +857,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_exonerada}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -769,6 +867,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_inafecta}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -797,6 +897,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_gratuita}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -804,6 +906,8 @@ const ComprobanteNuevoPage = () => {
             <input
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg"
+              value={totalComprobante.total_otros_cargos}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
@@ -812,6 +916,8 @@ const ComprobanteNuevoPage = () => {
               type="text"
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
+              value={totalComprobante.total_icbper}
+              step={0.01}
             />
           </label>
           <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
