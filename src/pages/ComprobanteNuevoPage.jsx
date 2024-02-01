@@ -4,7 +4,6 @@ import { supabase } from "../supabase/client";
 import SelectInput from "../components/SelectInput";
 import Switch from "../components/Switch";
 import { IconPlus, IconTimes } from "../components/Icons";
-// import { data } from 'autoprefixer';
 const FACTOR_IGV = 0.15254237288;
 
 const ComprobanteNuevoPage = () => {
@@ -60,11 +59,7 @@ const ComprobanteNuevoPage = () => {
     { value: "F003", label: "F003", document_type_id: 4 },
     { value: "F004", label: "F004", document_type_id: 4 },
   ];
-  const igv = [
-    { value: 18.0, label: "18%" },
-    // { value: 10.00, label: '10%' },
-    // { value: 4.00, label: '4%' },
-  ];
+  const igv = [{ value: 18.0, label: "18%" }];
   const moneda = [
     { value: 1, label: "S/" },
     { value: 2, label: "$" },
@@ -93,12 +88,8 @@ const ComprobanteNuevoPage = () => {
     total_inafecta: 0.0,
     total_gravada: 0.0,
     total_igv: 0.0,
-    total_gratuita: 0.0,
-    total_icbper: 0.0,
     total: 0.0,
   });
-  // const [valoresFinales, setValoresFinales] = useState([]);
-  // console.log(formData)
 
   useEffect(() => {
     getDetraccionTipo();
@@ -115,6 +106,7 @@ const ComprobanteNuevoPage = () => {
       fecha_de_emision: DateTime.now().toFormat("yyyy-MM-dd"),
       fecha_de_vencimiento: DateTime.now().toFormat("yyyy-MM-dd"),
       numero: 1,
+      moneda: 1,
     });
   }, []);
 
@@ -231,7 +223,6 @@ const ComprobanteNuevoPage = () => {
       total: 0.0,
       igv: 0.0,
       subtotal: 0.0,
-      // tipo_de_igv: tipoIgv[0].value,
     };
     setFilas([...filas, nuevaFila]);
   };
@@ -243,14 +234,17 @@ const ComprobanteNuevoPage = () => {
   };
 
   const handleInputChangeProductos = (id, e, name) => {
-    const nuevasFilas = filas.map((fila) =>
-      fila.id === id
-        ? {
-            ...fila,
-            [name]: e.target.value,
-          }
-        : fila
-    );
+    const descripcionAdicional = e.target.value;
+    const nuevasFilas = filas.map((fila) => {
+      if (fila.id === id) {
+        return {
+          ...fila,
+          [name]: descripcionAdicional,
+        };
+      } else {
+        return fila;
+      }
+    });
     setFilas(nuevasFilas);
     setFormData({ ...formData, items: nuevasFilas });
   };
@@ -376,8 +370,6 @@ const ComprobanteNuevoPage = () => {
             }
             if (e.value == 9 || e.value == 16) {
               const dataProducto = await getProducto(fila.producto_id);
-              // console.log(dataProducto.precio_venta)
-              // const igv = decimalAdjust(+dataProducto.precio_venta * FACTOR_IGV, 2);
               const valorUnitario = decimalAdjust(
                 +dataProducto.precio_venta,
                 2
@@ -413,12 +405,7 @@ const ComprobanteNuevoPage = () => {
     const total = decimalAdjust(+valorUnitario + +igv, 2);
 
     const nuevasFilas = filas.map((fila) => {
-      //TODO validar si existe tipo de igv para recalcular los totales
       if (fila.id === id) {
-        // if(fila.tipo_de_igv == 9){
-        //   valorUnitario = decimalAdjust(+dataProducto.precio_venta, 2);
-        //   console.log("valor", valorUnitario)
-        // }
         return {
           ...fila,
           [name]: e.value,
@@ -430,7 +417,6 @@ const ComprobanteNuevoPage = () => {
           subtotal: +valorUnitario * cantidad,
           total: +total * cantidad || 0,
           igv: +igv * cantidad,
-          // tipo_de_igv: tipoIgv[0].value,
         };
       } else {
         return fila;
@@ -440,7 +426,8 @@ const ComprobanteNuevoPage = () => {
     setFormData({ ...formData, items: nuevasFilas });
   };
 
-  console.log(filas);
+  // console.log(descripcionAdicional);
+  // console.log(filas);
   const sumaTotalComprobante = () => {
     const nuevaSumaTotal = filas.reduce((acc, producto) => {
       return acc + producto.total;
@@ -482,8 +469,39 @@ const ComprobanteNuevoPage = () => {
     return Number(roundedNumber);
   }
 
+  const mergeDescriptions = async () => {
+    const nuevasFilas = filas.map((fila) => {
+      if(fila.descripcion_adicional !== undefined) {
+        const filaModificada = { ...fila };
+        const descripcionCompleta =
+          fila.descripcion +
+          "<br>" +
+          fila.descripcion_adicional.replace(/\n/g, "<br>");
+        filaModificada.descripcion = descripcionCompleta;
+        delete filaModificada.descripcion_adicional;
+        return filaModificada;
+      }else{
+        return fila;
+      }
+    });
+    return nuevasFilas;
+  }
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const filasFinales = await mergeDescriptions();
+    const formDataFinal = {
+      ...formData,
+      ...totalComprobante,
+      items: filasFinales,
+    }
+    console.log(formDataFinal)
+    console.log(JSON.stringify(formDataFinal))
+    //TODO: aqui hacer el fetch para enviar los datos al backend
+  };
+
   return (
-    <form>
+    <form onSubmit={(e) => handleSubmit(e)}>
       <div className="grid grid-cols-5 mt-2 gap-x-4 gap-y-2">
         <label className="flex flex-col col-span-2 gap-1 text-sm text-zinc-500">
           Cliente
@@ -636,27 +654,27 @@ const ComprobanteNuevoPage = () => {
         </div>
         {filas.map((fila) => (
           <div key={fila.id} className="grid grid-cols-10 gap-1">
-            {console.log("IGVFILA", fila.tipo_de_igv)}
             <label className="flex flex-col gap-1 text-sm text-zinc-500 col-span-2">
               <SelectInput
                 name={`producto_id_${fila.id}`}
                 options={productos}
-                // onChange={(e) => { setFormData({ ...formData, moneda: e.value }); setSelectedMoneda(e) }}
                 onChange={(e) =>
                   handleSelectChangeProductosData(fila.id, e, `producto_id`)
                 }
-                // selected={selectedMoneda}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-zinc-500 col-span-2">
-              <input
-                type="text"
-                name={`detalle_${fila.id}`}
+              <textarea
+                rows={1}
+                name={`descripcion_${fila.id}`}
                 className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
                 onChange={(e) =>
-                  handleInputChangeProductos(fila.id, e, `detalle`)
+                  handleInputChangeProductos(
+                    fila.id,
+                    e,
+                    `descripcion_adicional`
+                  )
                 }
-                // value={fila.detalle_+`${fila.id}` || ''}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-zinc-500">
@@ -716,6 +734,7 @@ const ComprobanteNuevoPage = () => {
               />
             </label>
             <div className="flex items-center justify-center">
+              {/* TODO: boton pada agregar funcionalidad de anticipo y descuentos */}
               {selectedOperaciones.value === 4 && (
                 <button className="bg-primary p-1 text-white">
                   <IconPlus className="w-5 h-5" />
@@ -788,7 +807,6 @@ const ComprobanteNuevoPage = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, tipo_operacion: e.value })
                   }
-                  // selected={formData.tipo_operacion[0]}
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-zinc-500">
@@ -888,35 +906,6 @@ const ComprobanteNuevoPage = () => {
               className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
               readOnly
               value={totalComprobante.total_igv}
-              step={0.01}
-            />
-          </label>
-          <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
-            Gratuita
-            <input
-              type="text"
-              className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
-              readOnly
-              value={totalComprobante.total_gratuita}
-              step={0.01}
-            />
-          </label>
-          <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
-            Otros Cargos
-            <input
-              type="text"
-              className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg"
-              value={totalComprobante.total_otros_cargos}
-              step={0.01}
-            />
-          </label>
-          <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
-            ICBPER
-            <input
-              type="text"
-              className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
-              readOnly
-              value={totalComprobante.total_icbper}
               step={0.01}
             />
           </label>
