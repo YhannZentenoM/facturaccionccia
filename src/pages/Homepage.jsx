@@ -1,4 +1,4 @@
-// import { useState } from 'react'
+// import { useState } from "react"
 // import {
 //     useReactTable,
 //     getCoreRowModel,
@@ -6,54 +6,54 @@
 //     getPaginationRowModel,
 //     getSortedRowModel,
 //     getFilteredRowModel
-// } from '@tanstack/react-table'
+// } from "@tanstack/react-table"
 import Layout from "../components/Layout"
-import Table from '../components/Table'
-import { Link } from 'react-router-dom'
+import Table from "../components/Table"
+import { Link } from "react-router-dom"
 
 const Homepage = () => {
     // const [sorting, setSorting] = useState([])
-    // const [filtering, setFiltering] = useState('')
+    // const [filtering, setFiltering] = useState("")
 
     const data = [
     ]
 
     const columns = [
         {
-            header: 'Fecha',
-            accessorKey: 'fecha'
+            header: "Fecha",
+            accessorKey: "fecha"
         },
         {
-            header: 'Tipo',
-            accessorKey: 'tipo'
+            header: "Tipo",
+            accessorKey: "tipo"
         },
         {
-            header: 'Serie',
-            accessorKey: 'serie'
+            header: "Serie",
+            accessorKey: "serie"
         },
         {
-            header: 'Num.',
-            accessorKey: 'numero'
+            header: "Num.",
+            accessorKey: "numero"
         },
         {
-            header: 'Ruc, DNI',
-            accessorKey: 'ruc'
+            header: "Ruc, DNI",
+            accessorKey: "ruc"
         },
         {
-            header: 'Denominación',
-            accessorKey: 'denominacion'
+            header: "Denominación",
+            accessorKey: "denominacion"
         },
         {
-            header: 'M',
-            accessorKey: 'moneda'
+            header: "M",
+            accessorKey: "moneda"
         },
         {
-            header: 'Total',
-            accessorKey: 'total'
+            header: "Total",
+            accessorKey: "total"
         },
         {
-            header: 'Acciones',
-            accessorKey: 'acciones'
+            header: "Acciones",
+            accessorKey: "acciones"
         }
     ]
 

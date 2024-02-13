@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../supabase/client'
-import { Toaster, toast } from 'sonner';
-import Layout from '../components/Layout';
-import Table from '../components/Table';
-import Modal from '../components/Modal';
-import SelectInput from '../components/SelectInput';
+import { useEffect, useMemo, useRef, useState } from "react"
+import { supabase } from "../supabase/client"
+import { Toaster, toast } from "sonner";
+import Layout from "../components/Layout";
+import Table from "../components/Table";
+import Modal from "../components/Modal";
+import SelectInput from "../components/SelectInput";
 
 const Productospage = () => {
     const tipoProducto = [
-        { value: "NIU", label: 'NIU - PRODUCTO' },
-        { value: "ZZ", label: 'ZZ - SERVICIO' },
+        { value: "NIU", label: "NIU - PRODUCTO" },
+        { value: "ZZ", label: "ZZ - SERVICIO" },
     ]
 
     const [isModal, setIsModal] = useState(false)
@@ -25,33 +25,33 @@ const Productospage = () => {
 
     const columns = useMemo(() => [
         {
-            header: '#',
+            header: "#",
             cell: ({ cell }) => {
                 const { row } = cell;
                 return `${row.index + 1}`
             }
         },
         {
-            header: 'Código',
-            accessorKey: 'codigo'
+            header: "Código",
+            accessorKey: "codigo"
         },
         {
-            header: 'Número',
-            accessorKey: 'nombre'
+            header: "Número",
+            accessorKey: "nombre"
         },
         {
-            header: 'Precio',
-            accessorKey: 'precio_venta'
+            header: "Precio",
+            accessorKey: "precio_venta"
         },
         {
-            header: 'Centro de costo',
-            accessorFn: (row) => `${row.centro_costos.nombre || ''}`
+            header: "Centro de costo",
+            accessorFn: (row) => `${row.centro_costos.nombre || ""}`
         },
         {
-            header: 'Acciones',
+            header: "Acciones",
             cell: ({ cell }) => {
                 const id = cell.row.original.id
-                return <div className='flex items-center'>
+                return <div className="flex items-center">
                     <button
                         className="text-xs text-primary/70 px-2 py-1 hover:text-primary hover:underline"
                         onClick={() => {
@@ -77,7 +77,7 @@ const Productospage = () => {
 
     const getProductos = async () => {
         const { data: productos, error } = await supabase
-            .from('productos')
+            .from("productos")
             .select(`
                 id,
                 codigo,
@@ -87,7 +87,7 @@ const Productospage = () => {
                     nombre
                 )
             `)
-            .order('created_at', { ascending: true })
+            .order("created_at", { ascending: true })
         if (error) return console.log(error)
         setDataProductos(productos)
     }
@@ -95,15 +95,15 @@ const Productospage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault()
         // const { data: producto, error } = await supabase
-        //     .from('productos')
+        //     .from("productos")
         //     .insert({
         //         codigo: formData.codigo,
         //         nombre: formData.nombre,
         //         precio_venta: formData.precio_venta,
         //         centro_costos_id: formData.centro_costos_id,
         //     })
-        // if (error) return toast(error.message, 'error')
-        // toast('Producto creado correctamente', 'success')
+        // if (error) return toast(error.message, "error")
+        // toast("Producto creado correctamente", "success")
         // setIsModal(false)
         // getProductos()
     }
@@ -125,62 +125,62 @@ const Productospage = () => {
                 </div>
             </Layout>
             <Modal isOpen={isModal} onClose={() => setIsModal(false)}>
-                <h1 className='text-3xl'>Nuevo producto</h1>
+                <h1 className="text-3xl">Nuevo producto</h1>
                 <form onSubmit={handleSubmit} ref={formRef}>
-                    <div className='grid grid-cols-2 mt-2 gap-x-5 gap-y-2'>
-                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                    <div className="grid grid-cols-2 mt-2 gap-x-5 gap-y-2">
+                        <label className="flex flex-col gap-1 text-sm text-zinc-500">
                             Código
                             <input
                                 type="text"
-                                name='codigo'
-                                className='py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg'
-                                value={formData.codigo || ''}
+                                name="codigo"
+                                className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
+                                value={formData.codigo || ""}
                                 onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                             />
                         </label>
-                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                        <label className="flex flex-col gap-1 text-sm text-zinc-500">
                             Tipo
                             <SelectInput
-                                name='unidad_de_medida'
+                                name="unidad_de_medida"
                                 options={tipoProducto}
                                 onChange={(e) => setFormData({ ...formData, unidad_de_medida: e.value })}
                             // selected={documentoTipo[indice]}
-                            // value={formData.tipo || ''}
+                            // value={formData.tipo || ""}
                             />
                         </label>
-                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                        <label className="flex flex-col gap-1 text-sm text-zinc-500">
                             Centro de costos
                             <SelectInput
-                                name='centro_costos_id'
+                                name="centro_costos_id"
                                 options={documentoTipo}
                                 onChange={(e) => setFormData({ ...formData, centro_costos_id: e.value })}
                             // selected={documentoTipo[indice]}
-                            // value={formData.tipo || ''}
+                            // value={formData.tipo || ""}
                             />
                         </label>
-                        <label className='flex flex-col gap-1 text-sm text-zinc-500'>
+                        <label className="flex flex-col gap-1 text-sm text-zinc-500">
                             Precio inc. IGV
                             <input
                                 type="text"
-                                name='precio'
-                                className='py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg'
-                                value={formData.precio || ''}
+                                name="precio"
+                                className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
+                                value={formData.precio || ""}
                                 onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
                             />
                         </label>
-                        <label className='flex flex-col gap-1 text-sm text-zinc-500 col-span-2'>
+                        <label className="flex flex-col gap-1 text-sm text-zinc-500 col-span-2">
                             Nombre del producto o servicio
                             <input
                                 type="text"
-                                name='nombre'
-                                className='py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg'
-                                value={formData.nombre || ''}
+                                name="nombre"
+                                className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
+                                value={formData.nombre || ""}
                                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                             />
                         </label>
                     </div>
                     <button
-                        type='submit'
+                        type="submit"
                         className="text-white mt-5 bg-primary border hover:bg-primary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-2 text-center w-full"
                     >
                         Guardar

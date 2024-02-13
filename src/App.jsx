@@ -1,8 +1,8 @@
-import { Route, Routes } from 'react-router-dom'
-import { Clientespage, Homepage, Login } from './pages'
-import ComprobantePage from './pages/ComprobantePage'
-import ComprobanteNuevoPage from './pages/ComprobanteNuevoPage'
-import Productospage from './pages/Productospage'
+import { Route, Routes } from "react-router-dom"
+import { Clientespage, Homepage, Login } from "./pages"
+import ComprobantePage from "./pages/ComprobantePage"
+import ComprobanteNuevoPage from "./pages/ComprobanteNuevoPage"
+import Productospage from "./pages/Productospage"
 
 function App() {
 
