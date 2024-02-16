@@ -372,7 +372,7 @@ const ComprobanteNuevoPage = () => {
             };
           } else {
             if (fila.producto_id) {
-              if (fila.tipo_de_igv == 1) {
+              if (fila.tipo_de_igv == 1 || fila.tipo_de_igv === undefined) {
                 // gravada
                 const valorUnitario = decimalAdjust(+fila.valor_unitario, 2);
                 const igv = decimalAdjust(valorUnitario * 0.18, 2);

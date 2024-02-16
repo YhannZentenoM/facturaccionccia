@@ -1,5 +1,3 @@
-// TODO: arreglar la direccion automatica  a la pagina de comprobantes
-// TODO: arreglar login validaciones
 import { DateTime } from "luxon";
 import Layout from "../components/Layout";
 import Table from "../components/Table";

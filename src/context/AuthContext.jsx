@@ -11,12 +11,13 @@ export const AuthContextProvider = ({ children }) => {
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      //   setUser(session?.user ?? null)
       if (session == null) {
         navigate("/", { replace: true });
       } else {
         setUser(session?.user);
-        navigate("/home", { replace: true });
+        const pathname = window.location.pathname;
+        if (pathname === "/" || pathname === "/login")
+          navigate("/home", { replace: true });
       }
     });
     return () => {

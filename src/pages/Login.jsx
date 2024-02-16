@@ -7,7 +7,7 @@ const Login = () => {
     const handleSubmit = (e) => {
         e.preventDefault()
         const { elements } = e.currentTarget
-        const email = elements.namedItem("email").value
+        const email = elements.namedItem("email").value.trim()
         const password = elements.namedItem("password").value
         signInWithEmail(email, password)
     }
