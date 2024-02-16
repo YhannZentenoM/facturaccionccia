@@ -157,7 +157,6 @@ const Clientespage = () => {
                 }
                 setFormData({
                     ...formData,
-                    // id_tipo_documento: res.tipoDocumento,
                     razon_social: razon,
                     direccion_fiscal: res.direccion,
                 })
@@ -194,15 +193,7 @@ const Clientespage = () => {
         await getClientes()
         formRef.current.reset()
         setIsModal(false)
-        // location.reload()
     }
-
-    // const selectIndice = () => {
-    //     const ind = documentoTipo.findIndex(function (documento) { return documento.value === formData.tipo })
-    //     setIndice(ind)
-    // }
-    // console.log(documentoTipo)
-    // console.log("indice", documentoTipo[documentoTipo.findIndex(function (documento) { return documento.value === formData.tipo })])
 
     return (
         <>

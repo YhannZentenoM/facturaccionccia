@@ -4,18 +4,23 @@ import { supabase } from "../supabase/client";
 import SelectInput from "../components/SelectInput";
 import Switch from "../components/Switch";
 import Modal from "../components/Modal";
-import { IconPlus, IconTimes } from "../components/Icons";
+import {
+  IconExclamation,
+  IconPdf,
+  IconPlus,
+  IconTimes,
+} from "../components/Icons";
+import SelectInputBig from "../components/SelectInputBig";
+import { useUserAuth } from "../context/AuthContext";
+import Loading from "../components/Loading";
+import { Link } from "react-router-dom";
+
 const FACTOR_IGV = 0.15254237288;
 const NUM_CUENTAS =
   "Cuenta BCP soles: 215-00144900-80<br>Cuenta BBVA soles: 0011-0220-0100000403-14<br>Cuenta SCOTIABANK soles: 000-3228827<br><br>Cuenta BCP dólares: 215-75860200-80<br>Cuenta BBVA dólares: 0011-0223-0100017574-53<br>Cuenta SCOTIABANK dólares: 01-310-106-0191-67";
 
 const ComprobanteNuevoPage = () => {
-  const documents = [
-    { value: 1, label: "FACTURA [01]" },
-    { value: 2, label: "BOLETA [02]" },
-    { value: 3, label: "NOTA DE CRÉDITO [03]" },
-    { value: 4, label: "NOTA DE DÉBITO [04]" },
-  ];
+  const { user } = useUserAuth();
   const operations = [
     { value: 1, label: "VENTA INTERNA [01]" },
     {
@@ -44,32 +49,12 @@ const ComprobanteNuevoPage = () => {
       label: "OPERACIÓN SUJETA A DETRACCIÓN - RECURSOS HIDROBIOLÓGICOS [1002]",
     },
   ];
-  const seriesData = [
-    { value: "F001", label: "F001", document_type_id: 1 },
-    { value: "F002", label: "F002", document_type_id: 1 },
-    { value: "F003", label: "F003", document_type_id: 1 },
-    { value: "F004", label: "F004", document_type_id: 1 },
-    { value: "B001`", label: "B001", document_type_id: 2 },
-    { value: "B002", label: "B002", document_type_id: 2 },
-    { value: "B003", label: "B003", document_type_id: 2 },
-    { value: "B004", label: "B004", document_type_id: 2 },
-    { value: "F001", label: "F001", document_type_id: 3 },
-    { value: "F002", label: "F002", document_type_id: 3 },
-    { value: "F003", label: "F003", document_type_id: 3 },
-    { value: "F004", label: "F004", document_type_id: 3 },
-    { value: "F001", label: "F001", document_type_id: 4 },
-    { value: "F002", label: "F002", document_type_id: 4 },
-    { value: "F003", label: "F003", document_type_id: 4 },
-    { value: "F004", label: "F004", document_type_id: 4 },
-  ];
   const igv = [{ value: 18.0, label: "18%" }];
-  const moneda = [
-    { value: 1, label: "S/" },
-    { value: 2, label: "$" },
-    { value: 3, label: "€" },
-    { value: 4, label: "£" },
-  ];
 
+  const [urlPdfComprobante, setUrlPdfComprobante] = useState("");
+  const [comprobante, setComprobante] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmacion, setConfirmacion] = useState(false);
   const [modalErrores, setModalErrores] = useState(false);
   const [modalCredito, setModalCredito] = useState(false);
   const [errores, setErrores] = useState([]);
@@ -78,13 +63,16 @@ const ComprobanteNuevoPage = () => {
   const [detraccionMedioPago, setDetraccionMedioPago] = useState([]);
   const [isActiveDetraccion, setIsActiveDetraccion] = useState(false);
   const [formData, setFormData] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [moneda, setMoneda] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [tipoIgv, setTipoIgv] = useState([]);
+  const [seriesData, setSeriesData] = useState([]);
   const [series, setSeries] = useState([]);
   const [selectedSerie, setSelectedSerie] = useState();
-  const [selectedMoneda, setSelectedMoneda] = useState(moneda[0]);
-  const [selectedDocumento, setSelectedDocumento] = useState(documents[0]);
+  const [selectedMoneda, setSelectedMoneda] = useState([]);
+  const [selectedDocumento, setSelectedDocumento] = useState([]);
   const [selectedOperaciones, setSelectedOperaciones] = useState(operations[0]);
   const [filas, setFilas] = useState([]);
   const [filasCuotas, setFilasCuotas] = useState([]);
@@ -101,26 +89,36 @@ const ComprobanteNuevoPage = () => {
   });
 
   useEffect(() => {
-    getDetraccionTipo();
-    getDetraccionMedioPago();
-    getClientes();
-    getProductos();
-    getTipoIgv();
-    setFormData({
-      ...formData,
-      operacion: "generar_comprobante",
-      tipo_de_comprobante: 1,
-      sunat_transaction: 1,
-      porcentaje_de_igv: 18.0,
-      detraccion: false,
-      fecha_de_emision: DateTime.now().toFormat("yyyy-MM-dd"),
-      fecha_de_vencimiento: DateTime.now().toFormat("yyyy-MM-dd"),
-      numero: 15730,
-      moneda: 1,
-      enviar_automaticamente_a_la_sunat: true,
-      enviar_automaticamente_al_cliente: true,
-      total: 0.0,
-      observaciones: "",
+    const secuenciaNumero = async () => {
+      return await getSecuenciasComprobante();
+    };
+    secuenciaNumero().then((secuencia) => {
+      getDetraccionTipo();
+      getDetraccionMedioPago();
+      getClientes();
+      getProductos();
+      getTipoIgv();
+      getTipoDocumento();
+      getSeries();
+      getMoneda();
+      setFormData({
+        ...formData,
+        operacion: "generar_comprobante",
+        tipo_de_comprobante: 1,
+        sunat_transaction: 1,
+        porcentaje_de_igv: 18.0,
+        detraccion: false,
+        fecha_de_emision: DateTime.now().toFormat("yyyy-MM-dd"),
+        fecha_de_vencimiento: DateTime.now().toFormat("yyyy-MM-dd"),
+        numero: secuencia,
+        moneda: 1,
+        enviar_automaticamente_a_la_sunat: true,
+        enviar_automaticamente_al_cliente: true,
+        total: 0.0,
+        observaciones: "",
+        serie: "F001",
+        serie_id: 1,
+      });
     });
   }, []);
 
@@ -156,10 +154,44 @@ const ComprobanteNuevoPage = () => {
     setProductos(options);
   };
 
+  const getTipoDocumento = async () => {
+    const { data, error } = await supabase
+      .from("facturacion_tipo_documento")
+      .select();
+    if (error) {
+      console.log(error);
+      return;
+    }
+    setSelectedDocumento(data[0]);
+    setDocuments(data);
+  };
+
+  const getMoneda = async () => {
+    const { data, error } = await supabase.from("facturacion_moneda").select();
+    if (error) {
+      console.log(error);
+      return;
+    }
+    setSelectedMoneda(data[0]);
+    setMoneda(data);
+  };
+
+  const getSeries = async () => {
+    const { data, error } = await supabase.from("facturacion_series").select();
+    if (error) {
+      console.log(error);
+      return;
+    }
+    const series = data.filter((item) => +item.document_type_id == 1);
+    setSeries(series);
+    setSelectedSerie(series[0]);
+    setSeriesData(data);
+  };
+
   const getProducto = async (id) => {
     const { data, error } = await supabase
       .from("productos")
-      .select()
+      .select(`*, centro_costos(nombre,referencia,id_odoo)`)
       .eq("id", id)
       .single();
     if (error) console.log(error);
@@ -206,13 +238,34 @@ const ComprobanteNuevoPage = () => {
     setDetraccionMedioPago(options);
   };
 
-  const filterSeriesData = () => {
+  const filterSeriesData = async () => {
     const series = seriesData.filter(
       (item) => item.document_type_id == formData.tipo_de_comprobante
     );
     setSeries(series);
     setSelectedSerie(series[0]);
-    series.length > 0 && setFormData({ ...formData, serie: series[0].value });
+    // console.log(series[0]?.id)
+    // const secuencia = await gerSecuenciasComprobante(series[0]?.id);
+    series.length > 0 &&
+      setFormData({
+        ...formData,
+        serie: series[0].value,
+        serie_id: series[0].id,
+        // numero: secuencia,
+      });
+  };
+
+  const getSecuenciasComprobante = async (id = 1) => {
+    const { data, error } = await supabase
+      .from("secuencias_series")
+      .select("numero")
+      .eq("id_fac_series", id)
+      .single();
+    if (error) {
+      console.log(error);
+      return;
+    }
+    return data.numero;
   };
 
   const handleSelectCliente = async (e) => {
@@ -233,6 +286,7 @@ const ComprobanteNuevoPage = () => {
     // console.log("DATA", data)
     setFormData({
       ...formData,
+      cliente_id: e.value,
       cliente_tipo_de_documento: +data.cliente_tipo_de_documento.codigo,
       cliente_numero_de_documento: data.documento,
       cliente_denominacion: data.razon_social,
@@ -271,7 +325,6 @@ const ComprobanteNuevoPage = () => {
   const eliminarFilaCuota = (id) => {
     const nuevasFilas = filasCuotas.filter((fila) => fila.id !== id);
     setFilasCuotas(nuevasFilas);
-    // setFormData({ ...formData, items: nuevasFilas });
   };
 
   const handleInputChangeProductos = (id, e, name) => {
@@ -314,6 +367,8 @@ const ComprobanteNuevoPage = () => {
               subtotal: +subtotal * +e.target.value,
               total: +total * +e.target.value,
               igv: +igv * +e.target.value,
+              centro_costos: dataProducto.centro_costos.id_odoo,
+              producto_id_odoo: dataProducto.id_odoo,
             };
           } else {
             if (fila.producto_id) {
@@ -420,6 +475,8 @@ const ComprobanteNuevoPage = () => {
                 subtotal: +valorUnitario * fila.cantidad,
                 total: +total * fila.cantidad || 0,
                 igv: +igv * fila.cantidad,
+                centro_costos: dataProducto.centro_costos.id_odoo,
+                producto_id_odoo: dataProducto.id_odoo,
               };
             }
             if (e.value == 9 || e.value == 16) {
@@ -437,6 +494,8 @@ const ComprobanteNuevoPage = () => {
                 subtotal: +valorUnitario * fila.cantidad,
                 total: +total * fila.cantidad || 0,
                 igv: 0,
+                centro_costos: dataProducto.centro_costos.id_odoo,
+                producto_id_odoo: dataProducto.id_odoo,
               };
             }
           } else {
@@ -471,6 +530,8 @@ const ComprobanteNuevoPage = () => {
           subtotal: +valorUnitario * cantidad,
           total: +total * cantidad || 0,
           igv: +igv * cantidad,
+          centro_costos: dataProducto.centro_costos.id_odoo,
+          producto_id_odoo: dataProducto.id_odoo,
         };
       } else {
         return fila;
@@ -481,7 +542,7 @@ const ComprobanteNuevoPage = () => {
   };
 
   // console.log(descripcionAdicional);
-  console.log(filasCuotas);
+  // console.log(filas);
   const sumaTotalComprobante = () => {
     const nuevaSumaTotal = filas.reduce((acc, producto) => {
       return acc + producto.total;
@@ -580,16 +641,19 @@ const ComprobanteNuevoPage = () => {
       items: filasFinales,
     };
 
-    if(filasCuotas.length > 0) {
+    if (filasCuotas.length > 0) {
       formDataFinal = {
         ...formDataFinal,
         venta_al_credito: filasCuotas,
       };
-    }else {
+    } else {
       delete formDataFinal.venta_al_credito;
     }
 
-    if(totalComprobante.total == 0 && formDataFinal.venta_al_credito.length > 0) {
+    if (
+      totalComprobante.total == 0 &&
+      formDataFinal.venta_al_credito?.length > 0
+    ) {
       delete formDataFinal.venta_al_credito;
       setFilasCuotas([]);
     }
@@ -623,11 +687,16 @@ const ComprobanteNuevoPage = () => {
       );
     }
 
-    if(formDataFinal.detraccion === false && formDataFinal.sunat_transaction == 30) {
-      arrayErrores.push("Debe aplicar detracción si la operación es sujeta a detracción");
+    if (
+      formDataFinal.detraccion === false &&
+      formDataFinal.sunat_transaction == 30
+    ) {
+      arrayErrores.push(
+        "Debe aplicar detracción si la operación es sujeta a detracción"
+      );
     }
 
-    if(formDataFinal.detraccion === true) {
+    if (formDataFinal.detraccion === true) {
       if (formDataFinal.sunat_transaction !== 30) {
         arrayErrores.push(
           "Debe seleccionar un tipo de operación sujeta a detracción"
@@ -649,45 +718,132 @@ const ComprobanteNuevoPage = () => {
       setModalErrores(true);
       return;
     }
-    // console.log(formDataFinal);
-    // console.log(JSON.stringify(formDataFinal));
 
-    //TODO: aqui hacer el fetch para enviar los datos al backend
+    setConfirmacion(true);
+    setFormData(formDataFinal);
 
+    // const formDataApi = new FormData();
+    // formDataApi.append("data", JSON.stringify(formDataFinal));
+
+    // const response = await fetch(import.meta.env.VITE_APP_NUBEFACT_URL, {
+    //   method: "POST",
+    //   body: formDataApi,
+    // });
+    // response.json().then((data) => {
+    //   console.log(JSON.parse(data));
+    // });
+    // await insertarComprobante(formDataFinal);
+  };
+
+  const handleConfirmacion = async () => {
+    setLoading(true);
     const formDataApi = new FormData();
-    formDataApi.append("data", JSON.stringify(formDataFinal));
-    // formDataApi.append("data", formDataFinal);
+    formDataApi.append("data", JSON.stringify(formData));
 
     const response = await fetch(import.meta.env.VITE_APP_NUBEFACT_URL, {
       method: "POST",
-      // headers: {
-        // "Authorization": "Token token="" + import.meta.env.VITE_APP_NUBEFACT_TOKEN + """,
-        // "Content-Type": "application/json",
-      // },
       body: formDataApi,
     });
-    response.json().then((data) => {
-      console.log(JSON.parse(data));
+    response.json().then(async (data) => {
+      // console.log(JSON.parse(data));
+      const result = JSON.parse(data);
+      if (result.errors) {
+        const arrayErrores = [];
+        arrayErrores.push(result.errors);
+        setErrores(arrayErrores);
+        setModalErrores(true);
+        return;
+      }
+      const serie = await actualizarSecuencias(
+        formData.serie_id,
+        +formData.numero + 1
+      );
+      if (!serie) {
+        console.log("Error al actualizar secuencia");
+        return;
+      }
+      const comprobante = await insertarComprobante(
+        formData,
+        result.enlace_del_pdf
+      );
+      if (!comprobante) {
+        console.log("Error al insertar comprobante");
+        return;
+      }
+      setLoading(false);
+      setUrlPdfComprobante(result.enlace_del_pdf);
+      // console.log("FORMDATA2", formData);
+      setConfirmacion(false);
+      setComprobante(true);
+      // window.location.reload();
+    });
+  };
+
+  const actualizarSecuencias = async (serie, secuencia) => {
+    const { data, error } = await supabase
+      .from("secuencias_series")
+      .update({ numero: secuencia })
+      .eq("id_fac_series", serie);
+    if (error) {
+      console.log(error);
+      return;
     }
-    );
+    return true;
+  };
+
+  const insertarComprobante = async (data, urlPdf) => {
+    const {
+      cliente_id,
+      tipo_de_comprobante,
+      serie_id,
+      fecha_de_emision,
+      moneda,
+      numero,
+      total,
+      items,
+    } = data;
+    const { data: comprobante, error } = await supabase
+      .from("facturas")
+      .insert([
+        {
+          id_cliente: cliente_id,
+          id_usuario: user.id,
+          id_fac_tipo_documento: tipo_de_comprobante,
+          id_fac_series: serie_id,
+          fecha_emision: fecha_de_emision,
+          id_fac_moneda: moneda,
+          numero_comprobante: numero,
+          total_comprobante: total,
+          detalle_productos: items,
+          url_pdf: urlPdf,
+        },
+      ]);
+    if (error) {
+      console.log(error);
+      return;
+    }
+    return true;
   };
 
   return (
     <>
+      {loading && <Loading />}
       <form onSubmit={(e) => handleSubmit(e)}>
         <div className="grid grid-cols-5 mt-2 gap-x-4 gap-y-2">
           <label className="flex flex-col col-span-2 gap-1 text-sm text-zinc-500">
             Cliente
             <div className="flex items-center">
-              <SelectInput
+              <SelectInputBig
                 name={"cliente"}
                 options={clientes}
                 onChange={(e) => handleSelectCliente(e)}
-                // selected={clientes[0]}
               />
-              <button className="bg-primary py-2 px-3 text-white border border-primary rounded-tr-lg rounded-br-lg w-[150px]">
+              <Link
+                to="/clientes"
+                className="bg-primary py-2 px-3 text-white border border-primary rounded-tr-lg rounded-br-lg w-[150px]"
+              >
                 Nuevo cliente
-              </button>
+              </Link>
             </div>
           </label>
           <label className="flex flex-col gap-1 text-sm text-zinc-500">
@@ -708,8 +864,9 @@ const ComprobanteNuevoPage = () => {
             <SelectInput
               name={"serie"}
               options={series}
-              onChange={(e) => {
-                setFormData({ ...formData, serie: e.value });
+              onChange={async (e) => {
+                const secuencia = await getSecuenciasComprobante(e.id);
+                setFormData({ ...formData, serie: e.value, numero: secuencia });
                 setSelectedSerie(e);
               }}
               selected={selectedSerie}
@@ -879,7 +1036,6 @@ const ComprobanteNuevoPage = () => {
               <label className="flex flex-col gap-1 text-sm text-zinc-500">
                 <input
                   type="number"
-                  min={1}
                   name={`valor_unitario_${fila.id}`}
                   className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
                   onChange={(e) =>
@@ -1153,9 +1309,7 @@ const ComprobanteNuevoPage = () => {
       >
         {erroresCuotas.length > 0 && (
           <div className="bg-red-200 p-2 text-xs text-red-600 border border-red-300 rounded-md mt-2">
-            {
-              erroresCuotas.join(" | ")
-            }
+            {erroresCuotas.join(" | ")}
           </div>
         )}
         {filasCuotas.map((cuota, index) => (
@@ -1268,10 +1422,75 @@ const ComprobanteNuevoPage = () => {
                   ...numCuota,
                   cuota: +index + 1,
                 };
-              })
+              });
               setFilasCuotas(nuevasFilasCuptas);
               setErroresCuotas([]);
               setModalCredito(false);
+            }}
+          >
+            Aceptar
+          </button>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={confirmacion}
+        onClose={() => setConfirmacion(false)}
+        title="Confirmación"
+      >
+        <div className="flex flex-col justify-center items-center w-full p-6 gap-5">
+          <IconExclamation className="w-20 text-warning" />
+          <h3 className="font-light text-2xl">
+            ¿Está seguro de validar el comprobante?
+          </h3>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button
+            type="button"
+            className="text-white bg-secondary border hover:bg-secondary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-1 text-center"
+            onClick={() => setConfirmacion(false)}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="text-white bg-primary border hover:bg-primary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-1 text-center"
+            onClick={async () => {
+              setConfirmacion(false);
+              await handleConfirmacion();
+            }}
+          >
+            Aceptar
+          </button>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={comprobante}
+        onClose={() => setComprobante(false)}
+        title="Descargar comprobante"
+      >
+        {/* {urlPdfComprobante !== "" && <PDFViewer pdfLink={urlPdfComprobante} />} */}
+
+        <div className="flex flex-col justify-center items-center w-full p-6 gap-5">
+          <IconPdf className="w-20 text-danger/50" />
+          <h3 className="font-light text-2xl">
+            Comprobante generado correctamente
+          </h3>
+          <Link
+            to={urlPdfComprobante}
+            target="_blank"
+            className="bg-success/70 px-6 py-2 text-white rounded-xl text-lg font-medium hover:scale-105 hover:bg-success transition-all duration-300"
+          >
+            Descargar comprobante
+          </Link>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button
+            type="submit"
+            className="text-white bg-primary border hover:bg-primary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-1 text-center"
+            onClick={async () => {
+              setComprobante(false);
+              window.location.reload();
             }}
           >
             Aceptar

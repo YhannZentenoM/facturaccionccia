@@ -17,7 +17,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.17.0",
     "react-select": "^5.7.7",
-    "sonner": "^1.2.0"
+    "sonner": "^1.2.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/xlsx-0.20.1.tgz"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
