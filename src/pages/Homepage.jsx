@@ -38,7 +38,8 @@ const Homepage = () => {
     `
       )
       .eq("fecha_emision", fecha)
-      .eq("id_fac_series", serie);
+      .eq("id_fac_series", serie)
+      .order("numero_comprobante", { ascending: false })
     if (error) {
       console.error(error);
       return;
