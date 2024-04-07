@@ -118,6 +118,7 @@ const ComprobanteNuevoPage = () => {
         observaciones: "",
         serie: "F001",
         serie_id: 1,
+        medio_de_pago: "",
       });
     });
   }, []);
@@ -363,7 +364,7 @@ const ComprobanteNuevoPage = () => {
               ...fila,
               [name]: +e.target.value, //cantidad
               valor_unitario: +valorUnitario,
-              precio_unitario: +dataProducto.precio_venta,
+              precio_unitario: +total,
               subtotal: +subtotal * +e.target.value,
               total: +total * +e.target.value,
               igv: +igv * +e.target.value,
@@ -421,7 +422,7 @@ const ComprobanteNuevoPage = () => {
           return await {
             ...fila,
             [name]: valorUnitario, //precio_unitario
-            precio_unitario: valorUnitario,
+            precio_unitario: +total,
             subtotal: +subtotal * +fila.cantidad,
             total: +total * +fila.cantidad || 0,
             igv: +igv * +fila.cantidad,
@@ -471,7 +472,7 @@ const ComprobanteNuevoPage = () => {
                 ...fila,
                 [name]: e.value,
                 valor_unitario: +valorUnitario,
-                precio_unitario: +dataProducto.precio_venta,
+                precio_unitario: +total,
                 subtotal: +valorUnitario * fila.cantidad,
                 total: +total * fila.cantidad || 0,
                 igv: +igv * fila.cantidad,
@@ -490,7 +491,7 @@ const ComprobanteNuevoPage = () => {
                 ...fila,
                 [name]: e.value,
                 valor_unitario: +valorUnitario,
-                precio_unitario: +dataProducto.precio_venta,
+                precio_unitario: +total,
                 subtotal: +valorUnitario * fila.cantidad,
                 total: +total * fila.cantidad || 0,
                 igv: 0,
@@ -526,7 +527,7 @@ const ComprobanteNuevoPage = () => {
           unidad_de_medida: "ZZ",
           descripcion: dataProducto.nombre,
           valor_unitario: +valorUnitario,
-          precio_unitario: +dataProducto.precio_venta,
+          precio_unitario: +total,
           subtotal: +valorUnitario * cantidad,
           total: +total * cantidad || 0,
           igv: +igv * cantidad,
@@ -644,9 +645,11 @@ const ComprobanteNuevoPage = () => {
     if (filasCuotas.length > 0) {
       formDataFinal = {
         ...formDataFinal,
+        medio_de_pago: "credito",
         venta_al_credito: filasCuotas,
       };
     } else {
+      formDataFinal = { ...formDataFinal, medio_de_pago: "" };
       delete formDataFinal.venta_al_credito;
     }
 
@@ -654,6 +657,7 @@ const ComprobanteNuevoPage = () => {
       totalComprobante.total == 0 &&
       formDataFinal.venta_al_credito?.length > 0
     ) {
+      formDataFinal = { ...formDataFinal, medio_de_pago: "" };
       delete formDataFinal.venta_al_credito;
       setFilasCuotas([]);
     }
@@ -705,7 +709,7 @@ const ComprobanteNuevoPage = () => {
       if (!formDataFinal.detraccion_tipo) {
         arrayErrores.push("Debe seleccionar un tipo de detracción");
       }
-      if (!formDataFinal.detraccion_medio_pago) {
+      if (!formDataFinal.medio_de_pago_detraccion) {
         arrayErrores.push("Debe seleccionar un medio de pago de detracción");
       }
       if (!formDataFinal.detraccion_porcentaje) {
@@ -721,18 +725,6 @@ const ComprobanteNuevoPage = () => {
 
     setConfirmacion(true);
     setFormData(formDataFinal);
-
-    // const formDataApi = new FormData();
-    // formDataApi.append("data", JSON.stringify(formDataFinal));
-
-    // const response = await fetch(import.meta.env.VITE_APP_NUBEFACT_URL, {
-    //   method: "POST",
-    //   body: formDataApi,
-    // });
-    // response.json().then((data) => {
-    //   console.log(JSON.parse(data));
-    // });
-    // await insertarComprobante(formDataFinal);
   };
 
   const handleConfirmacion = async () => {
@@ -745,7 +737,6 @@ const ComprobanteNuevoPage = () => {
       body: formDataApi,
     });
     response.json().then(async (data) => {
-      // console.log(JSON.parse(data));
       const result = JSON.parse(data);
       if (result.errors) {
         const arrayErrores = [];
@@ -772,10 +763,9 @@ const ComprobanteNuevoPage = () => {
       }
       setLoading(false);
       setUrlPdfComprobante(result.enlace_del_pdf);
-      // console.log("FORMDATA2", formData);
+
       setConfirmacion(false);
       setComprobante(true);
-      // window.location.reload();
     });
   };
 
@@ -1126,6 +1116,7 @@ const ComprobanteNuevoPage = () => {
                 Medio de pago (crédito)
               </button>
             </div>
+            {/* DESTRACCION */}
             {isActiveDetraccion && formData.sunat_transaction == 30 && (
               <div className="grid grid-cols-3 gap-y-2 gap-x-4">
                 <label className="flex flex-col col-span-2 gap-1 text-sm text-zinc-500">
@@ -1294,6 +1285,7 @@ const ComprobanteNuevoPage = () => {
           Guardar
         </button>
       </form>
+      {/* ERRORES */}
       <Modal isOpen={modalErrores} onClose={() => setModalErrores(false)}>
         <h3 className="font-normal">Advertencia!!</h3>
         <ul className="font-normal text-sm mt-3 text-zinc-900">
@@ -1301,7 +1293,20 @@ const ComprobanteNuevoPage = () => {
             <li key={index}>{error}</li>
           ))}
         </ul>
+        <div className="flex justify-end gap-2 mt-5">
+          <button
+            type="button"
+            className="text-white bg-secondary border hover:bg-secondary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-1 text-center"
+            onClick={() => {
+              setModalErrores(false);
+              setLoading(false);
+            }}
+          >
+            Cerrar
+          </button>
+        </div>
       </Modal>
+      {/* CREDITO */}
       <Modal
         isOpen={modalCredito}
         onClose={() => setModalCredito(false)}
@@ -1432,6 +1437,7 @@ const ComprobanteNuevoPage = () => {
           </button>
         </div>
       </Modal>
+      {/* CONFIRMACION */}
       <Modal
         isOpen={confirmacion}
         onClose={() => setConfirmacion(false)}
@@ -1463,13 +1469,15 @@ const ComprobanteNuevoPage = () => {
           </button>
         </div>
       </Modal>
+      {/* COMPROBANTES */}
       <Modal
         isOpen={comprobante}
-        onClose={() => setComprobante(false)}
+        onClose={() => {
+          setComprobante(false);
+          window.location.reload();
+        }}
         title="Descargar comprobante"
       >
-        {/* {urlPdfComprobante !== "" && <PDFViewer pdfLink={urlPdfComprobante} />} */}
-
         <div className="flex flex-col justify-center items-center w-full p-6 gap-5">
           <IconPdf className="w-20 text-danger/50" />
           <h3 className="font-light text-2xl">
