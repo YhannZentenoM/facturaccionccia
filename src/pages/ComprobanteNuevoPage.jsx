@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { DateTime } from "luxon";
 import { supabase } from "../supabase/client";
-import SelectInput from "../components/SelectInput";
-import Switch from "../components/Switch";
-import Modal from "../components/Modal";
+import SelectInput from "@/components/SelectInput";
+import Switch from "@/components/Switch";
+import Modal from "@/components/Modal";
+import ClientesForm from "@/components/forms/ClientesForm";
+import SelectInputBig from "@/components/SelectInputBig";
+import Loading from "@/components/Loading";
 import {
   IconExclamation,
   IconPdf,
   IconPlus,
   IconTimes,
 } from "../components/Icons";
-import SelectInputBig from "../components/SelectInputBig";
 import { useUserAuth } from "../context/AuthContext";
-import Loading from "../components/Loading";
 import { Link } from "react-router-dom";
 
 const FACTOR_IGV = 0.15254237288;
@@ -54,6 +55,7 @@ const ComprobanteNuevoPage = () => {
   const [urlPdfComprobante, setUrlPdfComprobante] = useState("");
   const [comprobante, setComprobante] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [modalCliente, setModalCliente] = useState(false)
   const [confirmacion, setConfirmacion] = useState(false);
   const [modalErrores, setModalErrores] = useState(false);
   const [modalCredito, setModalCredito] = useState(false);
@@ -828,12 +830,15 @@ const ComprobanteNuevoPage = () => {
                 options={clientes}
                 onChange={(e) => handleSelectCliente(e)}
               />
-              <Link
-                to="/clientes"
+              <button
+                type="button"
                 className="bg-primary py-2 px-3 text-white border border-primary rounded-tr-lg rounded-br-lg w-[150px]"
+                onClick={() => {
+                  setModalCliente(true)
+                }}
               >
                 Nuevo cliente
-              </Link>
+              </button>
             </div>
           </label>
           <label className="flex flex-col gap-1 text-sm text-zinc-500">
@@ -1504,6 +1509,10 @@ const ComprobanteNuevoPage = () => {
             Aceptar
           </button>
         </div>
+      </Modal>
+      <Modal isOpen={modalCliente} onClose={() => setModalCliente(false)}>
+          <h1 className="text-3xl">Nuevo cliente</h1>
+          <ClientesForm id={null} getClientes={getClientes} setIsModal={setModalCliente} />
       </Modal>
     </>
   );
