@@ -110,11 +110,17 @@ const ClientesForm = ({ id, getClientes, setIsModal }) => {
         .from("clientes")
         .update([formData])
         .eq("id", formData.id);
-      if (error) console.log(error);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       toast.success("Cliente actualizado correctamente");
     } else {
       const { error } = await supabase.from("clientes").insert([formData]);
-      if (error) return console.log(error);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       toast.success("Cliente registrado correctamente");
     }
     await getClientes();

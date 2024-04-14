@@ -5,9 +5,11 @@ import Layout from "../components/Layout"
 import Modal from "../components/Modal"
 import Table from "../components/Table"
 import ClientesForm from "../components/forms/ClientesForm";
+import ActualizarClientesForm from "../components/forms/ActualizarClientesForm"
 
 const Clientespage = () => {
     const [isModal, setIsModal] = useState(false)
+    const [modalReload, setModalReload] = useState(false)
     // const [isValidateDocumento, setIsValidateDocumento] = useState(false)
     // const [documentoTipo, setDocumentoTipo] = useState([])
     // const [formData, setFormData] = useState([])
@@ -202,6 +204,7 @@ const Clientespage = () => {
                 <div className="py-5 flex flex-col gap-2">
                     <h1 className="text-3xl font-light">Clientes</h1>`
                     <Table data={dataClientes} columns={columns} >
+                        <div className="flex items-center gap-x-2">
                         <button
                             className="text-white bg-primary border hover:bg-primary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-2 text-center"
                             onClick={() => {
@@ -211,12 +214,25 @@ const Clientespage = () => {
                         >
                             Nuevo cliente
                         </button>
+                        <button
+                            className="text-white bg-primary border hover:bg-primary/90 focus:outline-none font-medium rounded-xl text-sm px-5 py-2 text-center"
+                            onClick={() => {
+                                setModalReload(true)
+                            }}
+                        >
+                            Actualizar clientes
+                        </button>
+                        </div>
                     </Table>
                 </div>
             </Layout>
             <Modal isOpen={isModal} onClose={() => setIsModal(false)}>
                 <h1 className="text-3xl">Nuevo cliente</h1>
                 <ClientesForm id={idClient} getClientes={getClientes} setIsModal={setIsModal} />
+            </Modal>
+            <Modal isOpen={modalReload} onClose={() => setModalReload(false)}>
+                <h1 className="text-3xl">Actualizar clientes</h1>
+                <ActualizarClientesForm setIsModal={setModalReload} />
             </Modal>
         </>
     )
