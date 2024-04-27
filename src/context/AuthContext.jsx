@@ -21,7 +21,7 @@ export const AuthContextProvider = ({ children }) => {
       }
     });
     return () => {
-      data.subscription
+      data.subscription;
     };
   }, []);
 
@@ -34,7 +34,7 @@ export const AuthContextProvider = ({ children }) => {
       if (error) throw new Error("Credenciales incorrectas");
       return data;
     } catch (error) {
-        setError(error.message)
+      setError(error.message);
       console.log(error);
     }
   }

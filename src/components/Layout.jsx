@@ -1,8 +1,27 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useUserAuth } from "../context/AuthContext";
+import { supabase } from "../supabase/client";
 
 const Layout = ({ children }) => {
-  const { signOut } = useUserAuth();
+  const { signOut, user } = useUserAuth();
+  const [userData, setUserData] = useState([])
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (error) {
+        console.log(error);
+        return;
+      }
+      setUserData(data);
+    };
+    user.id && fetchUser();
+  }, [user.id])
 
   return (
     <div className="bg-zinc-100 min-h-screen flex flex-col justify-between">

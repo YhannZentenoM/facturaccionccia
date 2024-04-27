@@ -55,10 +55,11 @@ const ComprobanteNuevoPage = () => {
   const [urlPdfComprobante, setUrlPdfComprobante] = useState("");
   const [comprobante, setComprobante] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [modalCliente, setModalCliente] = useState(false)
+  const [modalCliente, setModalCliente] = useState(false);
   const [confirmacion, setConfirmacion] = useState(false);
   const [modalErrores, setModalErrores] = useState(false);
   const [modalCredito, setModalCredito] = useState(false);
+  const [modalDescuentos, setModalDescuentos] = useState(false);
   const [errores, setErrores] = useState([]);
   const [erroresCuotas, setErroresCuotas] = useState([]);
   const [detraccionTipo, setDetraccionTipo] = useState([]);
@@ -330,6 +331,32 @@ const ComprobanteNuevoPage = () => {
     setFilasCuotas(nuevasFilas);
   };
 
+  const calcularIGV = (monto, tipo) => {
+    const igv = tipo === 1 ? decimalAdjust(+monto * FACTOR_IGV, 2) : 0;
+    const valorUnitario = decimalAdjust(+monto - igv, 4);
+    return {
+      igv: igv,
+      valorUnitario: valorUnitario,
+      total: monto
+    };
+  };
+
+  const calcularMontosFilas = async (idProducto, cantidad, fila, tipo) => {
+    const dataProducto = await getProducto(idProducto);
+    const { igv, valorUnitario, total } = calcularIGV(dataProducto.precio_venta, tipo);
+    return await {
+      ...fila,
+      cantidad: cantidad,
+      valor_unitario: +valorUnitario,
+      precio_unitario: +decimalAdjust(+total, 4),
+      subtotal: +valorUnitario * cantidad,
+      total: +total * cantidad,
+      igv: +igv * cantidad,
+      centro_costos: dataProducto.centro_costos.id_odoo,
+      producto_id_odoo: dataProducto.id_odoo,
+    };
+  };
+
   const handleInputChangeProductos = (id, e, name) => {
     const descripcionAdicional = e.target.value;
     const nuevasFilas = filas.map((fila) => {
@@ -350,60 +377,66 @@ const ComprobanteNuevoPage = () => {
     const nuevasFilas = await Promise.all(
       filas.map(async (fila) => {
         if (fila.id === id) {
-          if (fila.valor_unitario === 0) {
-            const dataProducto = await getProducto(fila.producto_id);
-            const igv = decimalAdjust(
-              +dataProducto.precio_venta * FACTOR_IGV,
-              2
-            );
-            const valorUnitario = decimalAdjust(
-              +dataProducto.precio_venta - igv,
-              2
-            );
-            const subtotal = decimalAdjust(+valorUnitario, 2);
-            const total = decimalAdjust(+subtotal + +igv, 2);
-            return await {
-              ...fila,
-              [name]: +e.target.value, //cantidad
-              valor_unitario: +valorUnitario,
-              precio_unitario: +total,
-              subtotal: +subtotal * +e.target.value,
-              total: +total * +e.target.value,
-              igv: +igv * +e.target.value,
-              centro_costos: dataProducto.centro_costos.id_odoo,
-              producto_id_odoo: dataProducto.id_odoo,
-            };
-          } else {
-            if (fila.producto_id) {
-              if (fila.tipo_de_igv == 1 || fila.tipo_de_igv === undefined) {
-                // gravada
-                const valorUnitario = decimalAdjust(+fila.valor_unitario, 2);
-                const igv = decimalAdjust(valorUnitario * 0.18, 2);
-                const subtotal = decimalAdjust(+valorUnitario, 2);
-                const total = decimalAdjust(+subtotal + +igv, 2);
-                return await {
-                  ...fila,
-                  [name]: +e.target.value, //cantidad
-                  valor_unitario: +valorUnitario,
-                  subtotal: +subtotal * +e.target.value,
-                  total: +total * +e.target.value,
-                  igv: +igv * +e.target.value,
-                };
-              }
-              if (fila.tipo_de_igv == 9 || fila.tipo_de_igv == 16) {
-                // inafecta
-                const valorUnitario = decimalAdjust(+fila.valor_unitario, 2);
-                return await {
-                  ...fila,
-                  [name]: +e.target.value, //cantidad
-                  valor_unitario: +valorUnitario,
-                  subtotal: +valorUnitario * +e.target.value,
-                  total: +valorUnitario * +e.target.value,
-                  igv: 0,
-                };
-              }
-            }
-          }
+          if (fila.producto_id === undefined) return fila
+          if (fila.tipo_de_igv === undefined) return fila
+            // const dataProducto = await getProducto(fila.producto_id);
+            // const igv = decimalAdjust(
+            //   +dataProducto.precio_venta * FACTOR_IGV,
+            //   2
+            // );
+            // const valorUnitario = decimalAdjust(
+            //   +dataProducto.precio_venta - igv,
+            //   4
+            // );
+            // const subtotal = decimalAdjust(+valorUnitario, 2);
+            // const total = decimalAdjust(+subtotal + +igv, 2);
+            // return await {
+            //   ...fila,
+            //   [name]: +e.target.value, //cantidad
+            //   valor_unitario: +valorUnitario,
+            //   precio_unitario: +decimalAdjust(+total, 4),
+            //   subtotal: +subtotal * +e.target.value,
+            //   total: +total * +e.target.value,
+            //   igv: +igv * +e.target.value,
+            //   centro_costos: dataProducto.centro_costos.id_odoo,
+            //   producto_id_odoo: dataProducto.id_odoo,
+            // };
+
+            // return await calcularMontosFilas(fila.producto_id, +e.target.value, fila);
+          // }
+          //  else {
+
+            return await calcularMontosFilas(fila.producto_id, +e.target.value, fila, fila.tipo_de_igv);
+            // if (fila.producto_id) {
+              // if (fila.tipo_de_igv == 1 || fila.tipo_de_igv === undefined) {
+              //   // gravada
+              //   const valorUnitario = decimalAdjust(+fila.valor_unitario, 4);
+              //   const igv = decimalAdjust(valorUnitario * 0.18, 2);
+              //   const subtotal = decimalAdjust(+valorUnitario, 2);
+              //   const total = decimalAdjust(+subtotal + +igv, 2);
+              //   return await {
+              //     ...fila,
+              //     [name]: +e.target.value, //cantidad
+              //     valor_unitario: +valorUnitario,
+              //     subtotal: +subtotal * +e.target.value,
+              //     total: +total * +e.target.value,
+              //     igv: +igv * +e.target.value,
+              //   };
+              // }
+              // if (fila.tipo_de_igv == 9 || fila.tipo_de_igv == 16) {
+              //   // inafecta
+              //   const valorUnitario = decimalAdjust(+fila.valor_unitario, 4);
+              //   return await {
+              //     ...fila,
+              //     [name]: +e.target.value, //cantidad
+              //     valor_unitario: +valorUnitario,
+              //     subtotal: +valorUnitario * +e.target.value,
+              //     total: +valorUnitario * +e.target.value,
+              //     igv: 0,
+              //   };
+              // }
+            // }
+          // }
         } else {
           return fila;
         }
@@ -417,14 +450,14 @@ const ComprobanteNuevoPage = () => {
     const nuevasFilas = await Promise.all(
       filas.map(async (fila) => {
         if (fila.id === id) {
-          const valorUnitario = decimalAdjust(+e.target.value, 2);
+          const valorUnitario = decimalAdjust(+e.target.value, 4);
           const igv = decimalAdjust(valorUnitario * 0.18, 2);
           const subtotal = decimalAdjust(+valorUnitario, 2);
           const total = decimalAdjust(+subtotal + +igv, 2);
           return await {
             ...fila,
             [name]: valorUnitario, //precio_unitario
-            precio_unitario: +total,
+            precio_unitario: +decimalAdjust(+total, 4),
             subtotal: +subtotal * +fila.cantidad,
             total: +total * +fila.cantidad || 0,
             igv: +igv * +fila.cantidad,
@@ -467,15 +500,15 @@ const ComprobanteNuevoPage = () => {
               );
               const valorUnitario = decimalAdjust(
                 +dataProducto.precio_venta - igv,
-                2
+                4
               );
               const total = decimalAdjust(+valorUnitario + +igv, 2);
               return {
                 ...fila,
                 [name]: e.value,
                 valor_unitario: +valorUnitario,
-                precio_unitario: +total,
-                subtotal: +valorUnitario * fila.cantidad,
+                precio_unitario: +decimalAdjust(+total, 4),
+                subtotal: +decimalAdjust(+valorUnitario * fila.cantidad, 2),
                 total: +total * fila.cantidad || 0,
                 igv: +igv * fila.cantidad,
                 centro_costos: dataProducto.centro_costos.id_odoo,
@@ -486,15 +519,15 @@ const ComprobanteNuevoPage = () => {
               const dataProducto = await getProducto(fila.producto_id);
               const valorUnitario = decimalAdjust(
                 +dataProducto.precio_venta,
-                2
+                4
               );
               const total = decimalAdjust(+valorUnitario, 2);
               return {
                 ...fila,
                 [name]: e.value,
                 valor_unitario: +valorUnitario,
-                precio_unitario: +total,
-                subtotal: +valorUnitario * fila.cantidad,
+                precio_unitario: +decimalAdjust(+total, 4),
+                subtotal: +decimalAdjust(+valorUnitario * fila.cantidad, 2),
                 total: +total * fila.cantidad || 0,
                 igv: 0,
                 centro_costos: dataProducto.centro_costos.id_odoo,
@@ -517,7 +550,7 @@ const ComprobanteNuevoPage = () => {
     const cantidad = 1;
     const dataProducto = await getProducto(e.value);
     const igv = decimalAdjust(+dataProducto.precio_venta * FACTOR_IGV, 2);
-    let valorUnitario = decimalAdjust(+dataProducto.precio_venta - igv, 2);
+    let valorUnitario = decimalAdjust(+dataProducto.precio_venta - igv, 4);
     const total = decimalAdjust(+valorUnitario + +igv, 2);
 
     const nuevasFilas = filas.map((fila) => {
@@ -529,8 +562,8 @@ const ComprobanteNuevoPage = () => {
           unidad_de_medida: "ZZ",
           descripcion: dataProducto.nombre,
           valor_unitario: +valorUnitario,
-          precio_unitario: +total,
-          subtotal: +valorUnitario * cantidad,
+          precio_unitario: +decimalAdjust(+total, 4),
+          subtotal: +decimalAdjust(+valorUnitario * cantidad, 2),
           total: +total * cantidad || 0,
           igv: +igv * cantidad,
           centro_costos: dataProducto.centro_costos.id_odoo,
@@ -544,8 +577,6 @@ const ComprobanteNuevoPage = () => {
     setFormData({ ...formData, items: nuevasFilas });
   };
 
-  // console.log(descripcionAdicional);
-  // console.log(filas);
   const sumaTotalComprobante = () => {
     const nuevaSumaTotal = filas.reduce((acc, producto) => {
       return acc + producto.total;
@@ -687,6 +718,14 @@ const ComprobanteNuevoPage = () => {
       });
     }
 
+    if (
+      formDataFinal.moneda !== 1 &&
+      (formDataFinal.tipo_de_cambio === undefined ||
+        formDataFinal.tipo_de_cambio === 0)
+    ) {
+      arrayErrores.push("El tipo de cambio no puede estar vacio");
+    }
+
     if (formDataFinal.total > 700 && formDataFinal.detraccion === false) {
       arrayErrores.push(
         "El comprobante supera los 700 soles, debe aplicar detracción"
@@ -730,46 +769,47 @@ const ComprobanteNuevoPage = () => {
   };
 
   const handleConfirmacion = async () => {
-    setLoading(true);
-    const formDataApi = new FormData();
-    formDataApi.append("data", JSON.stringify(formData));
+    // setLoading(true);
+    console.log(formData);
+    // const formDataApi = new FormData();
+    // formDataApi.append("data", JSON.stringify(formData));
 
-    const response = await fetch(import.meta.env.VITE_APP_NUBEFACT_URL, {
-      method: "POST",
-      body: formDataApi,
-    });
-    response.json().then(async (data) => {
-      const result = JSON.parse(data);
-      if (result.errors) {
-        const arrayErrores = [];
-        arrayErrores.push(result.errors);
-        setErrores(arrayErrores);
-        setModalErrores(true);
-        return;
-      }
-      
-      const serie = await actualizarSecuencias(
-        formData.serie_id,
-        +formData.numero + 1
-      );
-      if (!serie) {
-        console.log("Error al actualizar secuencia");
-        return;
-      }
-      const comprobante = await insertarComprobante(
-        formData,
-        result.enlace_del_pdf
-      );
-      if (!comprobante) {
-        console.log("Error al insertar comprobante");
-        return;
-      }
-      setLoading(false);
-      setUrlPdfComprobante(result.enlace_del_pdf);
+    // const response = await fetch(import.meta.env.VITE_APP_NUBEFACT_URL, {
+    //   method: "POST",
+    //   body: formDataApi,
+    // });
+    // response.json().then(async (data) => {
+    //   const result = JSON.parse(data);
+    //   if (result.errors) {
+    //     const arrayErrores = [];
+    //     arrayErrores.push(result.errors);
+    //     setErrores(arrayErrores);
+    //     setModalErrores(true);
+    //     return;
+    //   }
 
-      setConfirmacion(false);
-      setComprobante(true);
-    });
+    //   const serie = await actualizarSecuencias(
+    //     formData.serie_id,
+    //     +formData.numero + 1
+    //   );
+    //   if (!serie) {
+    //     console.log("Error al actualizar secuencia");
+    //     return;
+    //   }
+    //   const comprobante = await insertarComprobante(
+    //     formData,
+    //     result.enlace_del_pdf
+    //   );
+    //   if (!comprobante) {
+    //     console.log("Error al insertar comprobante");
+    //     return;
+    //   }
+    //   setLoading(false);
+    //   setUrlPdfComprobante(result.enlace_del_pdf);
+
+    //   setConfirmacion(false);
+    //   setComprobante(true);
+    // });
   };
 
   const actualizarSecuencias = async (serie, secuencia) => {
@@ -818,6 +858,25 @@ const ComprobanteNuevoPage = () => {
     return true;
   };
 
+  // const doneTyping = () => {
+  //   console.log(formData.descuento_global)
+  //   const descuento = decimalAdjust(
+  //     totalComprobante.total_gravada * (+formData.descuento_global / 100),
+  //     0
+  //   );
+
+  //   const total = decimalAdjust(
+  //     totalComprobante.total_gravada - descuento,
+  //     2
+  //   );
+
+  //   setTotalComprobante({
+  //     ...totalComprobante,
+  //     total_gravada: total,
+  //     total_descuento_global: descuento,
+  //   });
+  // };
+
   return (
     <>
       {loading && <Loading />}
@@ -835,7 +894,7 @@ const ComprobanteNuevoPage = () => {
                 type="button"
                 className="bg-primary py-2 px-3 text-white border border-primary rounded-tr-lg rounded-br-lg w-[150px]"
                 onClick={() => {
-                  setModalCliente(true)
+                  setModalCliente(true);
                 }}
               >
                 Nuevo cliente
@@ -862,7 +921,12 @@ const ComprobanteNuevoPage = () => {
               options={series}
               onChange={async (e) => {
                 const secuencia = await getSecuenciasComprobante(e.id);
-                setFormData({ ...formData, serie: e.value, serie_id:e.id, numero: secuencia });
+                setFormData({
+                  ...formData,
+                  serie: e.value,
+                  serie_id: e.id,
+                  numero: secuencia,
+                });
                 setSelectedSerie(e);
               }}
               selected={selectedSerie}
@@ -950,9 +1014,16 @@ const ComprobanteNuevoPage = () => {
           <label className="flex flex-col gap-1 text-sm text-zinc-500">
             Tipo de cambio
             <input
-              type="text"
+              type="number"
               name="cambio"
               className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
+              step={0.001}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  tipo_de_cambio: decimalAdjust(+e.target.value, 3),
+                })
+              }
             />
           </label>
         </div>
@@ -983,7 +1054,7 @@ const ComprobanteNuevoPage = () => {
               Acciones
             </label>
           </div>
-          {filas.map((fila) => (
+          {filas?.map((fila) => (
             <div key={fila.id} className="grid grid-cols-10 gap-1">
               <label className="flex flex-col gap-1 text-sm text-zinc-500 col-span-2">
                 <SelectInput
@@ -1038,7 +1109,7 @@ const ComprobanteNuevoPage = () => {
                     handlePriceChangeProductos(fila.id, e, `valor_unitario`)
                   }
                   value={fila.valor_unitario || ""}
-                  step={0.01}
+                  step={0.0001}
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-zinc-500">
@@ -1047,8 +1118,7 @@ const ComprobanteNuevoPage = () => {
                   name="cambio"
                   className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg read-only:bg-zinc-200"
                   readOnly
-                  // defaultValue={0.00}
-                  step={0.01}
+                  step={0.0001}
                   value={fila.subtotal || ""}
                 />
               </label>
@@ -1058,18 +1128,62 @@ const ComprobanteNuevoPage = () => {
                   name="cambio"
                   className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg read-only:bg-zinc-200"
                   readOnly
-                  // defaultValue={0.00}
                   step={0.01}
                   value={fila.total || ""}
                 />
               </label>
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center relative">
                 {/* TODO: boton pada agregar funcionalidad de anticipo y descuentos */}
-                {selectedOperaciones.value === 4 && (
-                  <button className="bg-primary p-1 text-white">
-                    <IconPlus className="w-5 h-5" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="bg-primary p-1 text-white"
+                  onClick={() => {
+                    const filaDescuento = document.getElementById(`${fila.id}`);
+                    const filasDescuento =
+                      document.querySelectorAll(".filaDescuento");
+
+                    filasDescuento.forEach((fila) => {
+                      if (fila !== filaDescuento) {
+                        fila.classList.add("hidden");
+                      }
+                    });
+
+                    filaDescuento.classList.toggle("hidden");
+                  }}
+                >
+                  <IconPlus className="w-5 h-5" />
+                </button>
+                <div
+                  className="bg-white shadow-md absolute -left-10 right-5 -bottom-20 w-lg p-2 hidden rounded-lg z-10 filaDescuento"
+                  id={fila.id}
+                >
+                  <label className="flex flex-col gap-1 text-xs text-zinc-500">
+                    Descuento por Item
+                    <input
+                      type="number"
+                      className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg read-only:bg-zinc-200"
+                      onChange={(e) => {
+                        const total = decimalAdjust(
+                          fila.total - +e.target.value,
+                          2
+                        );
+                        const nuevasFilas = filas.map((item) => {
+                          if (item.id === fila.id) {
+                            return {
+                              ...item,
+                              descuento: descuento,
+                              total: total,
+                            };
+                          } else {
+                            return item;
+                          }
+                        });
+                        setFilas(nuevasFilas);
+                        setFormData({ ...formData, items: nuevasFilas });
+                      }}
+                    />
+                  </label>
+                </div>
                 <button
                   type="button"
                   className="text-xs text-white bg-red-500/80 p-1 hover:bg-red-500 hover:underline"
@@ -1184,14 +1298,30 @@ const ComprobanteNuevoPage = () => {
               </div>
             )}
           </div>
+          {/* TOTALES */}
           <div className="flex flex-col">
-            <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
+            {/* <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
               % Descuento Global
               <input
                 type="text"
                 className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg"
-              />
-            </label>
+                onChange={(e) => {
+                  let typingTimer; // Timer identifier
+                  const doneTypingInterval = 3000;
+                  setFormData({
+                    ...formData,
+                    descuento_global: +e.target.value,
+                  });
+                  clearTimeout(typingTimer);
+                  typingTimer = setTimeout(doneTyping, doneTypingInterval); 
+                  // setFormData({
+                  //   ...formData,
+                  //   descuento_global: +e.target.value,
+                  //   total_descuento_global: totalDescuento,
+                  // });
+            //     }}
+            //   />
+            // </label>*/}
             <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
               Descuento Global (-)
               <input
@@ -1202,7 +1332,7 @@ const ComprobanteNuevoPage = () => {
                 step={0.01}
               />
             </label>
-            <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
+            {/* <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
               Descuento por Item (-)
               <input
                 type="text"
@@ -1211,8 +1341,8 @@ const ComprobanteNuevoPage = () => {
                 value={totalComprobante.total_descuento_item}
                 step={0.01}
               />
-            </label>
-            <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
+            </label> */}
+            {/* <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
               Descuento Total (-)
               <input
                 type="text"
@@ -1221,7 +1351,7 @@ const ComprobanteNuevoPage = () => {
                 value={totalComprobante.total_descuento}
                 step={0.01}
               />
-            </label>
+            </label> */}
             <label className="flex items-center justify-end gap-3 text-sm text-zinc-500">
               Anticipo (-)
               <input
@@ -1511,9 +1641,23 @@ const ComprobanteNuevoPage = () => {
           </button>
         </div>
       </Modal>
+      {/* NUEVO CLIENTE */}
       <Modal isOpen={modalCliente} onClose={() => setModalCliente(false)}>
-          <h1 className="text-3xl">Nuevo cliente</h1>
-          <ClientesForm id={null} getClientes={getClientes} setIsModal={setModalCliente} />
+        <h1 className="text-3xl">Nuevo cliente</h1>
+        <ClientesForm
+          id={null}
+          getClientes={getClientes}
+          setIsModal={setModalCliente}
+        />
+      </Modal>
+      {/* DESCUENTOS */}
+      <Modal isOpen={modalDescuentos} onClose={() => setModalDescuentos(false)}>
+        <h1 className="text-3xl">Descuentos</h1>
+        {/* <DescuentosForm
+          id={null}
+          getDescuentos={getDescuentos}
+          setIsModal={setModalDescuentos}
+        /> */}
       </Modal>
     </>
   );
