@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import Layout from "../components/Layout";
 import Table from "../components/Table";
+import Modal from "../components/Modal";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabase/client";
 import { useEffect, useState } from "react";
@@ -39,7 +40,7 @@ const Homepage = () => {
       )
       .eq("fecha_emision", fecha)
       .eq("id_fac_series", serie)
-      .order("numero_comprobante", { ascending: false })
+      .order("numero_comprobante", { ascending: false });
     if (error) {
       console.error(error);
       return;

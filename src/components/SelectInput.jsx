@@ -1,10 +1,11 @@
 import Select from "react-select"
 
-const SelectInput = ({ options, onChange, name, selected, required = false }) => {
+const SelectInput = ({ options, onChange, name, selected, required = false, disabled }) => {
     return (
         <Select
             name={`${name}`}
             className="w-full"
+            isDisabled={disabled}
             options={options}
             placeholder="Seleccione..."
             // defaultValue={selected}

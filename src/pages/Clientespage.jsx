@@ -5,10 +5,12 @@ import Layout from "../components/Layout"
 import Modal from "../components/Modal"
 import Table from "../components/Table"
 import ClientesForm from "../components/forms/ClientesForm";
+import ClientesView from "../components/views/ClientesView"
 import ActualizarClientesForm from "../components/forms/ActualizarClientesForm"
 
 const Clientespage = () => {
     const [isModal, setIsModal] = useState(false)
+    const [isModalVer, setIsModalVer] = useState(false)
     const [modalReload, setModalReload] = useState(false)
     // const [isValidateDocumento, setIsValidateDocumento] = useState(false)
     // const [documentoTipo, setDocumentoTipo] = useState([])
@@ -65,12 +67,17 @@ const Clientespage = () => {
                 const id = cell.row.original.id
                 return <div className="flex items-center">
                     <button
+                        className="text-xs text-green-700/70 px-2 py-1 hover:text-green-700 hover:underline"
+                        onClick={() => {
+                            setIdClient(id)
+                            setIsModalVer(true)
+                        }}
+                    >
+                        Ver
+                    </button>
+                    <button
                         className="text-xs text-primary/70 px-2 py-1 hover:text-primary hover:underline"
                         onClick={() => {
-                            // setFormData({
-                            //     ...formData,
-                            //     id: id,
-                            // })
                             setIdClient(id)
                             setIsModal(true)
                         }}
@@ -229,6 +236,10 @@ const Clientespage = () => {
             <Modal isOpen={isModal} onClose={() => setIsModal(false)}>
                 <h1 className="text-3xl">Nuevo cliente</h1>
                 <ClientesForm id={idClient} getClientes={getClientes} setIsModal={setIsModal} />
+            </Modal>
+            <Modal isOpen={isModalVer} onClose={() => setIsModalVer(false)}>
+                <h1 className="text-3xl">Ver cliente</h1>
+                <ClientesView id={idClient} setIsModalVer={setIsModalVer} />
             </Modal>
             <Modal isOpen={modalReload} onClose={() => setModalReload(false)}>
                 <h1 className="text-3xl">Actualizar clientes</h1>

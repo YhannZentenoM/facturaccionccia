@@ -74,6 +74,7 @@ const ComprobanteNuevoPage = () => {
   const [seriesData, setSeriesData] = useState([]);
   const [series, setSeries] = useState([]);
   const [selectedSerie, setSelectedSerie] = useState();
+  const [selectedTipoIgv, setSelectedTipoIgv] = useState();
   const [selectedMoneda, setSelectedMoneda] = useState([]);
   const [selectedDocumento, setSelectedDocumento] = useState([]);
   const [selectedOperaciones, setSelectedOperaciones] = useState(operations[0]);
@@ -93,7 +94,7 @@ const ComprobanteNuevoPage = () => {
 
   useEffect(() => {
     const secuenciaNumero = async () => {
-      return await getSecuenciasComprobante();
+      return await getSecuenciasComprobante(4);
     };
     secuenciaNumero().then((secuencia) => {
       getDetraccionTipo();
@@ -119,8 +120,8 @@ const ComprobanteNuevoPage = () => {
         enviar_automaticamente_al_cliente: true,
         total: 0.0,
         observaciones: "",
-        serie: "F001",
-        serie_id: 1,
+        serie: "F002",
+        serie_id: 4,
         medio_de_pago: "",
       });
     });
@@ -133,6 +134,10 @@ const ComprobanteNuevoPage = () => {
   useEffect(() => {
     filterSeriesData();
   }, [formData.tipo_de_comprobante]);
+
+  useEffect(() => {
+    getLastDateExpire();
+  }, [filasCuotas]);
 
   const getClientes = async () => {
     const { data, error } = await supabase.from("clientes").select();
@@ -188,7 +193,7 @@ const ComprobanteNuevoPage = () => {
     }
     const series = data.filter((item) => +item.document_type_id == 1);
     setSeries(series);
-    setSelectedSerie(series[0]);
+    setSelectedSerie(series[1]);
     setSeriesData(data);
   };
 
@@ -247,19 +252,19 @@ const ComprobanteNuevoPage = () => {
       (item) => item.document_type_id == formData.tipo_de_comprobante
     );
     setSeries(series);
-    setSelectedSerie(series[0]);
-    // console.log(series[0]?.id)
-    // const secuencia = await gerSecuenciasComprobante(series[0]?.id);
-    series.length > 0 &&
+    setSelectedSerie(series[1]);
+    if (series.length > 0) {
+      const secuencia = await getSecuenciasComprobante(series[1].id);
       setFormData({
         ...formData,
-        serie: series[0].value,
-        serie_id: series[0].id,
-        // numero: secuencia,
+        serie: series[1].value,
+        serie_id: series[1].id,
+        numero: secuencia,
       });
+    }
   };
 
-  const getSecuenciasComprobante = async (id = 1) => {
+  const getSecuenciasComprobante = async (id) => {
     const { data, error } = await supabase
       .from("secuencias_series")
       .select("numero")
@@ -309,6 +314,9 @@ const ComprobanteNuevoPage = () => {
       total: 0.0,
       igv: 0.0,
       subtotal: 0.0,
+      descuento: 0.0,
+      unidad_de_medida: "ZZ",
+      tipo_de_igv: 1,
     };
     setFilas([...filas, nuevaFila]);
   };
@@ -332,32 +340,49 @@ const ComprobanteNuevoPage = () => {
   };
 
   const calcularIGV = (monto, tipo) => {
-    const igv = tipo === 1 ? decimalAdjust(+monto * FACTOR_IGV, 2) : 0;
-    const valorUnitario = decimalAdjust(+monto - igv, 4);
-    return {
-      igv: igv,
-      valorUnitario: valorUnitario,
-      total: monto
-    };
+    // const igv = tipo === 1 ? decimalAdjust(+monto * FACTOR_IGV, 2) : 0;
+    const igv = tipo === 1 ? decimalAdjust(+monto * 0.18, 2) : 0;
+    // const valorUnitario = decimalAdjust(+monto - igv, 4);
+    return igv;
   };
 
-  const calcularMontosFilas = async (idProducto, cantidad, fila, tipo) => {
-    const dataProducto = await getProducto(idProducto);
-    const { igv, valorUnitario, total } = calcularIGV(dataProducto.precio_venta, tipo);
-    return await {
-      ...fila,
-      cantidad: cantidad,
-      valor_unitario: +valorUnitario,
-      precio_unitario: +decimalAdjust(+total, 4),
-      subtotal: +valorUnitario * cantidad,
-      total: +total * cantidad,
-      igv: +igv * cantidad,
-      centro_costos: dataProducto.centro_costos.id_odoo,
-      producto_id_odoo: dataProducto.id_odoo,
-    };
-  };
+  // const calcularMontosFilas = async (
+  //   idProducto,
+  //   valor,
+  //   cantidad,
+  //   fila,
+  //   tipo,
+  //   descuento
+  // ) => {
+  //   const dataProducto = await getProducto(idProducto);
+  //   const valorUnitario = decimalAdjust(valor, 4);
+  //   const subtotal = decimalAdjust(valorUnitario * cantidad - descuento, 2);
+  //   const igv = calcularIGV(subtotal, tipo);
+  //   const total = decimalAdjust(subtotal + igv, 2);
+  //   const selectedTIgv = tipoIgv.find((item) => item.value == tipo);
+  //   // console.log(valor, igv, valorUnitario);
+  //   return await {
+  //     ...fila,
+  //     producto_id: idProducto,
+  //     cantidad: cantidad,
+  //     unidad_de_medida: "ZZ",
+  //     valor_unitario: +valorUnitario,
+  //     descripcion: dataProducto.nombre,
+  //     precio_unitario: +decimalAdjust(+total, 4),
+  //     // subtotal: +valorUnitario * cantidad,
+  //     subtotal: +subtotal,
+  //     // total: +total * cantidad,
+  //     total: +total,
+  //     igv: +igv * cantidad,
+  //     centro_costos: dataProducto.centro_costos.id_odoo,
+  //     producto_id_odoo: dataProducto.id_odoo,
+  //     tipo_de_igv: tipo,
+  //     tipo_igv_select: selectedTIgv,
+  //     descuento: descuento || 0,
+  //   };
+  // };
 
-  const handleInputChangeProductos = (id, e, name) => {
+  const handleInputChangeDescription = (id, e, name) => {
     const descripcionAdicional = e.target.value;
     const nuevasFilas = filas.map((fila) => {
       if (fila.id === id) {
@@ -373,70 +398,26 @@ const ComprobanteNuevoPage = () => {
     setFormData({ ...formData, items: nuevasFilas });
   };
 
-  const handleInputNumberChangeProductos = async (id, e, name) => {
+  const handleInputNumberChangeProductos = async (id, e) => {
     const nuevasFilas = await Promise.all(
-      filas.map(async (fila) => {
+      filas.map((fila) => {
         if (fila.id === id) {
-          if (fila.producto_id === undefined) return fila
-          if (fila.tipo_de_igv === undefined) return fila
-            // const dataProducto = await getProducto(fila.producto_id);
-            // const igv = decimalAdjust(
-            //   +dataProducto.precio_venta * FACTOR_IGV,
-            //   2
-            // );
-            // const valorUnitario = decimalAdjust(
-            //   +dataProducto.precio_venta - igv,
-            //   4
-            // );
-            // const subtotal = decimalAdjust(+valorUnitario, 2);
-            // const total = decimalAdjust(+subtotal + +igv, 2);
-            // return await {
-            //   ...fila,
-            //   [name]: +e.target.value, //cantidad
-            //   valor_unitario: +valorUnitario,
-            //   precio_unitario: +decimalAdjust(+total, 4),
-            //   subtotal: +subtotal * +e.target.value,
-            //   total: +total * +e.target.value,
-            //   igv: +igv * +e.target.value,
-            //   centro_costos: dataProducto.centro_costos.id_odoo,
-            //   producto_id_odoo: dataProducto.id_odoo,
-            // };
-
-            // return await calcularMontosFilas(fila.producto_id, +e.target.value, fila);
-          // }
-          //  else {
-
-            return await calcularMontosFilas(fila.producto_id, +e.target.value, fila, fila.tipo_de_igv);
-            // if (fila.producto_id) {
-              // if (fila.tipo_de_igv == 1 || fila.tipo_de_igv === undefined) {
-              //   // gravada
-              //   const valorUnitario = decimalAdjust(+fila.valor_unitario, 4);
-              //   const igv = decimalAdjust(valorUnitario * 0.18, 2);
-              //   const subtotal = decimalAdjust(+valorUnitario, 2);
-              //   const total = decimalAdjust(+subtotal + +igv, 2);
-              //   return await {
-              //     ...fila,
-              //     [name]: +e.target.value, //cantidad
-              //     valor_unitario: +valorUnitario,
-              //     subtotal: +subtotal * +e.target.value,
-              //     total: +total * +e.target.value,
-              //     igv: +igv * +e.target.value,
-              //   };
-              // }
-              // if (fila.tipo_de_igv == 9 || fila.tipo_de_igv == 16) {
-              //   // inafecta
-              //   const valorUnitario = decimalAdjust(+fila.valor_unitario, 4);
-              //   return await {
-              //     ...fila,
-              //     [name]: +e.target.value, //cantidad
-              //     valor_unitario: +valorUnitario,
-              //     subtotal: +valorUnitario * +e.target.value,
-              //     total: +valorUnitario * +e.target.value,
-              //     igv: 0,
-              //   };
-              // }
-            // }
-          // }
+          const igv = calcularIGV(
+            fila.valor_unitario * +e.target.value - fila.descuento,
+            fila.tipo_de_igv
+          );
+          const subtotal =
+            fila.valor_unitario * +e.target.value - fila.descuento;
+          return {
+            ...fila,
+            cantidad: +e.target.value,
+            igv: igv,
+            subtotal: subtotal,
+            tipo_igv_select: fila.tipo_igv_select,
+            valor_unitario: fila.valor_unitario,
+            precio_unitario: fila.precio_unitario,
+            total: subtotal + igv,
+          };
         } else {
           return fila;
         }
@@ -446,21 +427,23 @@ const ComprobanteNuevoPage = () => {
     setFormData({ ...formData, items: nuevasFilas });
   };
 
-  const handlePriceChangeProductos = async (id, e, name) => {
+  const handlePriceChangeProductos = async (id, e) => {
     const nuevasFilas = await Promise.all(
-      filas.map(async (fila) => {
+      filas.map((fila) => {
         if (fila.id === id) {
-          const valorUnitario = decimalAdjust(+e.target.value, 4);
-          const igv = decimalAdjust(valorUnitario * 0.18, 2);
-          const subtotal = decimalAdjust(+valorUnitario, 2);
-          const total = decimalAdjust(+subtotal + +igv, 2);
-          return await {
+          const igv = calcularIGV(
+            e.target.value * fila.cantidad - fila.descuento,
+            fila.tipo_de_igv
+          );
+          const igvUnitario = calcularIGV(e.target.value, fila.tipo_de_igv);
+          const subtotal = e.target.value * fila.cantidad - fila.descuento;
+          return {
             ...fila,
-            [name]: valorUnitario, //precio_unitario
-            precio_unitario: +decimalAdjust(+total, 4),
-            subtotal: +subtotal * +fila.cantidad,
-            total: +total * +fila.cantidad || 0,
-            igv: +igv * +fila.cantidad,
+            valor_unitario: +e.target.value,
+            igv: igv,
+            subtotal: subtotal,
+            precio_unitario: +e.target.value + igvUnitario,
+            total: subtotal + igv,
           };
         } else {
           return fila;
@@ -486,57 +469,29 @@ const ComprobanteNuevoPage = () => {
     setFilasCuotas(nuevasFilas);
   };
 
-  // modificacion del tipo de IDV para cada producto
-  const handleSelectChangeProductos = async (id, e, name) => {
+  const handleSelectChangeTipoIgv = async (id, e) => {
     const nuevasFilas = await Promise.all(
-      filas.map(async (fila) => {
+      filas.map((fila) => {
         if (fila.id === id) {
-          if (fila.producto_id) {
-            if (e.value == 1) {
-              const dataProducto = await getProducto(fila.producto_id);
-              const igv = decimalAdjust(
-                +dataProducto.precio_venta * FACTOR_IGV,
-                2
-              );
-              const valorUnitario = decimalAdjust(
-                +dataProducto.precio_venta - igv,
-                4
-              );
-              const total = decimalAdjust(+valorUnitario + +igv, 2);
-              return {
-                ...fila,
-                [name]: e.value,
-                valor_unitario: +valorUnitario,
-                precio_unitario: +decimalAdjust(+total, 4),
-                subtotal: +decimalAdjust(+valorUnitario * fila.cantidad, 2),
-                total: +total * fila.cantidad || 0,
-                igv: +igv * fila.cantidad,
-                centro_costos: dataProducto.centro_costos.id_odoo,
-                producto_id_odoo: dataProducto.id_odoo,
-              };
-            }
-            if (e.value == 9 || e.value == 16) {
-              const dataProducto = await getProducto(fila.producto_id);
-              const valorUnitario = decimalAdjust(
-                +dataProducto.precio_venta,
-                4
-              );
-              const total = decimalAdjust(+valorUnitario, 2);
-              return {
-                ...fila,
-                [name]: e.value,
-                valor_unitario: +valorUnitario,
-                precio_unitario: +decimalAdjust(+total, 4),
-                subtotal: +decimalAdjust(+valorUnitario * fila.cantidad, 2),
-                total: +total * fila.cantidad || 0,
-                igv: 0,
-                centro_costos: dataProducto.centro_costos.id_odoo,
-                producto_id_odoo: dataProducto.id_odoo,
-              };
-            }
-          } else {
-            return { ...fila, [name]: e.value };
-          }
+          const igv =
+            e.value === 1
+              ? calcularIGV(
+                  fila.valor_unitario * fila.cantidad - fila.descuento,
+                  1
+                )
+              : 0;
+          const igvUnitario =
+            e.value === 1 ? calcularIGV(fila.valor_unitario, 1) : 0;
+          const subtotal = fila.valor_unitario * fila.cantidad - fila.descuento;
+          return {
+            ...fila,
+            tipo_de_igv: e.value,
+            tipo_igv_select: e,
+            igv: igv,
+            subtotal: subtotal,
+            precio_unitario: fila.valor_unitario + igvUnitario,
+            total: subtotal + igv,
+          };
         } else {
           return fila;
         }
@@ -546,33 +501,39 @@ const ComprobanteNuevoPage = () => {
     setFormData({ ...formData, items: nuevasFilas });
   };
 
-  const handleSelectChangeProductosData = async (id, e, name) => {
-    const cantidad = 1;
+  const handleSelectChangeProductosData = async (id, e) => {
     const dataProducto = await getProducto(e.value);
-    const igv = decimalAdjust(+dataProducto.precio_venta * FACTOR_IGV, 2);
-    let valorUnitario = decimalAdjust(+dataProducto.precio_venta - igv, 4);
-    const total = decimalAdjust(+valorUnitario + +igv, 2);
+    const subtotal = decimalAdjust(
+      dataProducto.precio_venta - dataProducto.precio_venta * FACTOR_IGV,
+      2
+    );
+    const selectedTIgv = tipoIgv.find((item) => item.value == 1);
+    const igv = calcularIGV(subtotal, 1);
+    const total = decimalAdjust(subtotal + igv, 2);
 
-    const nuevasFilas = filas.map((fila) => {
-      if (fila.id === id) {
-        return {
-          ...fila,
-          [name]: e.value,
-          cantidad: cantidad,
-          unidad_de_medida: "ZZ",
-          descripcion: dataProducto.nombre,
-          valor_unitario: +valorUnitario,
-          precio_unitario: +decimalAdjust(+total, 4),
-          subtotal: +decimalAdjust(+valorUnitario * cantidad, 2),
-          total: +total * cantidad || 0,
-          igv: +igv * cantidad,
-          centro_costos: dataProducto.centro_costos.id_odoo,
-          producto_id_odoo: dataProducto.id_odoo,
-        };
-      } else {
-        return fila;
-      }
-    });
+    const nuevasFilas = await Promise.all(
+      filas.map((fila) => {
+        if (fila.id === id) {
+          return {
+            ...fila,
+            cantidad: 1,
+            descripcion: dataProducto.nombre,
+            producto_id: e.value,
+            igv: igv,
+            subtotal: +subtotal,
+            tipo_de_igv: 1,
+            tipo_igv_select: selectedTIgv,
+            valor_unitario: +subtotal,
+            precio_unitario: +total,
+            total: +total,
+            centro_costos: dataProducto.centro_costos.id_odoo,
+            producto_id_odoo: dataProducto.id_odoo,
+          };
+        } else {
+          return fila;
+        }
+      })
+    );
     setFilas(nuevasFilas);
     setFormData({ ...formData, items: nuevasFilas });
   };
@@ -597,6 +558,10 @@ const ComprobanteNuevoPage = () => {
       0
     );
 
+    const sumaTotalDescuento = filas.reduce((acc, producto) => {
+      return acc + producto.descuento;
+    }, 0);
+
     const sumaTotalIgv = filas.reduce((acc, producto) => {
       return acc + producto.igv;
     }, 0);
@@ -607,6 +572,7 @@ const ComprobanteNuevoPage = () => {
       total_gravada: decimalAdjust(sumaTotalGravada, 2),
       total_inafecta: decimalAdjust(sumaTotalInafecto, 2),
       total: decimalAdjust(nuevaSumaTotal, 2),
+      total_descuento: decimalAdjust(sumaTotalDescuento, 2),
     });
   };
 
@@ -769,47 +735,47 @@ const ComprobanteNuevoPage = () => {
   };
 
   const handleConfirmacion = async () => {
-    // setLoading(true);
-    console.log(formData);
-    // const formDataApi = new FormData();
-    // formDataApi.append("data", JSON.stringify(formData));
+    setLoading(true);
+    // console.log(formData);
+    const formDataApi = new FormData();
+    formDataApi.append("data", JSON.stringify(formData));
 
-    // const response = await fetch(import.meta.env.VITE_APP_NUBEFACT_URL, {
-    //   method: "POST",
-    //   body: formDataApi,
-    // });
-    // response.json().then(async (data) => {
-    //   const result = JSON.parse(data);
-    //   if (result.errors) {
-    //     const arrayErrores = [];
-    //     arrayErrores.push(result.errors);
-    //     setErrores(arrayErrores);
-    //     setModalErrores(true);
-    //     return;
-    //   }
+    const response = await fetch(import.meta.env.VITE_APP_NUBEFACT_URL, {
+      method: "POST",
+      body: formDataApi,
+    });
+    response.json().then(async (data) => {
+      const result = JSON.parse(data);
+      if (result.errors) {
+        const arrayErrores = [];
+        arrayErrores.push(result.errors);
+        setErrores(arrayErrores);
+        setModalErrores(true);
+        return;
+      }
 
-    //   const serie = await actualizarSecuencias(
-    //     formData.serie_id,
-    //     +formData.numero + 1
-    //   );
-    //   if (!serie) {
-    //     console.log("Error al actualizar secuencia");
-    //     return;
-    //   }
-    //   const comprobante = await insertarComprobante(
-    //     formData,
-    //     result.enlace_del_pdf
-    //   );
-    //   if (!comprobante) {
-    //     console.log("Error al insertar comprobante");
-    //     return;
-    //   }
-    //   setLoading(false);
-    //   setUrlPdfComprobante(result.enlace_del_pdf);
+      const serie = await actualizarSecuencias(
+        formData.serie_id,
+        +formData.numero + 1
+      );
+      if (!serie) {
+        console.log("Error al actualizar secuencia");
+        return;
+      }
+      const comprobante = await insertarComprobante(
+        formData,
+        result.enlace_del_pdf
+      );
+      if (!comprobante) {
+        console.log("Error al insertar comprobante");
+        return;
+      }
+      setLoading(false);
+      setUrlPdfComprobante(result.enlace_del_pdf);
 
-    //   setConfirmacion(false);
-    //   setComprobante(true);
-    // });
+      setConfirmacion(false);
+      setComprobante(true);
+    });
   };
 
   const actualizarSecuencias = async (serie, secuencia) => {
@@ -858,24 +824,15 @@ const ComprobanteNuevoPage = () => {
     return true;
   };
 
-  // const doneTyping = () => {
-  //   console.log(formData.descuento_global)
-  //   const descuento = decimalAdjust(
-  //     totalComprobante.total_gravada * (+formData.descuento_global / 100),
-  //     0
-  //   );
-
-  //   const total = decimalAdjust(
-  //     totalComprobante.total_gravada - descuento,
-  //     2
-  //   );
-
-  //   setTotalComprobante({
-  //     ...totalComprobante,
-  //     total_gravada: total,
-  //     total_descuento_global: descuento,
-  //   });
-  // };
+  const getLastDateExpire = () => {
+    filasCuotas.map((fila) => {
+      if (!fila.fecha_de_pago) return;
+      setFormData({
+        ...formData,
+        fecha_de_vencimiento: fila.fecha_de_pago,
+      });
+    });
+  };
 
   return (
     <>
@@ -1060,18 +1017,17 @@ const ComprobanteNuevoPage = () => {
                 <SelectInput
                   name={`producto_id_${fila.id}`}
                   options={productos}
-                  onChange={(e) =>
-                    handleSelectChangeProductosData(fila.id, e, `producto_id`)
-                  }
+                  onChange={(e) => handleSelectChangeProductosData(fila.id, e)}
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-zinc-500 col-span-2">
                 <textarea
                   rows={1}
                   name={`descripcion_${fila.id}`}
+                  disabled={fila.producto_id ? false : true}
                   className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
                   onChange={(e) =>
-                    handleInputChangeProductos(
+                    handleInputChangeDescription(
                       fila.id,
                       e,
                       `descripcion_adicional`
@@ -1084,19 +1040,21 @@ const ComprobanteNuevoPage = () => {
                   type="number"
                   min={1}
                   name={`cantidad_${fila.id}`}
+                  disabled={fila.producto_id ? false : true}
                   className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
-                  onChange={(e) =>
-                    handleInputNumberChangeProductos(fila.id, e, `cantidad`)
-                  }
+                  onChange={(e) => handleInputNumberChangeProductos(fila.id, e)}
                   defaultValue={1}
+                  step={0.1}
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-zinc-500">
                 <SelectInput
                   name={`tipo_de_igv_${fila.id}`}
+                  disabled={fila.producto_id ? false : true}
                   options={tipoIgv}
+                  selected={fila.tipo_igv_select}
                   onChange={(e) => {
-                    handleSelectChangeProductos(fila.id, e, `tipo_de_igv`);
+                    handleSelectChangeTipoIgv(fila.id, e);
                   }}
                 />
               </label>
@@ -1104,11 +1062,10 @@ const ComprobanteNuevoPage = () => {
                 <input
                   type="number"
                   name={`valor_unitario_${fila.id}`}
+                  disabled={fila.producto_id ? false : true}
                   className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
-                  onChange={(e) =>
-                    handlePriceChangeProductos(fila.id, e, `valor_unitario`)
-                  }
-                  value={fila.valor_unitario || ""}
+                  onChange={(e) => handlePriceChangeProductos(fila.id, e)}
+                  value={fila.valor_unitario || 0}
                   step={0.0001}
                 />
               </label>
@@ -1118,7 +1075,7 @@ const ComprobanteNuevoPage = () => {
                   name="cambio"
                   className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg read-only:bg-zinc-200"
                   readOnly
-                  step={0.0001}
+                  step={0.00001}
                   value={fila.subtotal || ""}
                 />
               </label>
@@ -1161,23 +1118,50 @@ const ComprobanteNuevoPage = () => {
                     Descuento por Item
                     <input
                       type="number"
+                      disabled={fila.producto_id ? false : true}
                       className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg read-only:bg-zinc-200"
-                      onChange={(e) => {
-                        const total = decimalAdjust(
-                          fila.total - +e.target.value,
-                          2
+                      onChange={async (e) => {
+                        const nuevasFilas = await Promise.all(
+                          filas.map((item) => {
+                            const descuentoPorcentaje =
+                              (item.valor_unitario *
+                                item.cantidad *
+                                +e.target.value) /
+                              100;
+                            if (item.id === fila.id) {
+                              console.log(
+                                item.valor_unitario * item.cantidad -
+                                  descuentoPorcentaje
+                              );
+                              // return await calcularMontosFilas(
+                              //   item.producto_id,
+                              //   item.valor_unitario,
+                              //   item.cantidad,
+                              //   fila,
+                              //   item.tipo_de_igv,
+                              //   +e.target.value
+                              //   );
+                              const igv = calcularIGV(
+                                item.valor_unitario * item.cantidad -
+                                  descuentoPorcentaje,
+                                item.tipo_de_igv
+                              );
+                              const subtotal =
+                                item.valor_unitario * item.cantidad -
+                                descuentoPorcentaje;
+                              return {
+                                ...item,
+                                descuento: descuentoPorcentaje,
+                                igv: igv,
+                                subtotal: subtotal,
+                                total: subtotal + igv,
+                              };
+                            } else {
+                              return item;
+                            }
+                          })
                         );
-                        const nuevasFilas = filas.map((item) => {
-                          if (item.id === fila.id) {
-                            return {
-                              ...item,
-                              descuento: descuento,
-                              total: total,
-                            };
-                          } else {
-                            return item;
-                          }
-                        });
+
                         setFilas(nuevasFilas);
                         setFormData({ ...formData, items: nuevasFilas });
                       }}
@@ -1328,7 +1312,7 @@ const ComprobanteNuevoPage = () => {
                 type="text"
                 className="py-1 px-2 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-[100px] lg:w-[150px] text-zinc-900 rounded-lg read-only:bg-zinc-200"
                 readOnly
-                value={totalComprobante.total_descuento_global}
+                value={totalComprobante.total_descuento}
                 step={0.01}
               />
             </label>

@@ -187,14 +187,14 @@ const ClientesForm = ({ id, getClientes, setIsModal }) => {
             />
           </label>
           <label className="flex flex-col gap-1 col-span-3 text-sm text-zinc-500">
-            Razón comercial (Marca)
+            Nombre de contacto
             <input
               type="text"
-              name="razon_comercial"
+              name="contacto"
               className="py-2 px-3 focus:outline-none focus:ring-0 focus:border-zinc-400 border border-zinc-300 w-full text-zinc-900 rounded-lg"
-              value={formData.razon_comercial || ""}
+              value={formData.contacto || ""}
               onChange={(e) =>
-                setFormData({ ...formData, razon_comercial: e.target.value })
+                setFormData({ ...formData, contacto: e.target.value })
               }
             />
           </label>
