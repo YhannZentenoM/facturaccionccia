@@ -18,7 +18,7 @@ import { Link } from "react-router-dom";
 
 const FACTOR_IGV = 0.15254237288;
 const NUM_CUENTAS =
-  "Cuenta BCP soles: 215-00144900-80<br>Cuenta BBVA soles: 0011-0220-0100000403-14<br>Cuenta SCOTIABANK soles: 000-3228827<br><br>Cuenta BCP dólares: 215-75860200-80<br>Cuenta BBVA dólares: 0011-0223-0100017574-53<br>Cuenta SCOTIABANK dólares: 01-310-106-0191-67";
+  "Cuenta BCP soles: 215-00144900-80<br>Cuenta BBVA soles: 0011-0220-0100000403<br>Cuenta SCOTIABANK soles: 000-3228827<br><br>Cuenta BCP dólares: 215-75860200-80<br>Cuenta BBVA dólares: 0011-0223-0100017574-53<br>Cuenta SCOTIABANK dólares: 01-310-106-0191-67";
 
 const ComprobanteNuevoPage = () => {
   const { user } = useUserAuth();
@@ -692,7 +692,7 @@ const ComprobanteNuevoPage = () => {
       arrayErrores.push("El tipo de cambio no puede estar vacio");
     }
 
-    if (formDataFinal.total > 700 && formDataFinal.detraccion === false) {
+    if (formDataFinal.total > 700 && formDataFinal.detraccion === false && formDataFinal.tipo_de_comprobante === 1) {
       arrayErrores.push(
         "El comprobante supera los 700 soles, debe aplicar detracción"
       );
